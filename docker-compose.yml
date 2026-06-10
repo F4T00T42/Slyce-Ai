@@ -1,0 +1,65 @@
+# One-command startup for the whole Slyce AI stack:
+#
+#   1. cp .env.example .env   # fill in GROQ_API_KEY, HF_TOKEN, TAVILY_API_KEY, DB_* (Supabase)
+#   2. docker compose up --build
+#
+# Services:
+#   - app          : the FastAPI Nutrition Assistant (POST /chat, /recommend, /health)
+#   - qdrant       : vector store for the RAG knowledge base (separate datastore)
+#   - sessions-db  : Postgres for durable conversation history (separate datastore)
+#
+# The main application database (your Supabase Postgres) is external and used
+# READ-ONLY via the DB_* values in .env. It is never written to.
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.11.0
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  sessions-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SESSION_DB_USER:-slyce}
+      POSTGRES_PASSWORD: ${SESSION_DB_PASSWORD:-slyce}
+      POSTGRES_DB: ${SESSION_DB_NAME:-ai_chat}
+    volumes:
+      - sessions_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SESSION_DB_USER:-slyce} -d ${SESSION_DB_NAME:-ai_chat}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override .env to point at the bundled services inside the compose network.
+      QDRANT_URL: http://qdrant:6333
+      SESSION_BACKEND: postgres
+      SESSION_DB_URL: postgresql+psycopg2://${SESSION_DB_USER:-slyce}:${SESSION_DB_PASSWORD:-slyce}@sessions-db:5432/${SESSION_DB_NAME:-ai_chat}
+      # Ingest the KB on first boot (idempotent: skips if already populated).
+      RUN_INGEST: "true"
+      WEB_CONCURRENCY: "1"
+    ports:
+      - "8000:8000"
+    depends_on:
+      sessions-db:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    volumes:
+      # Persist the downloaded embedding model so it is fetched only once.
+      - hf_cache:/root/.cache/huggingface
+
+volumes:
+  qdrant_data:
+  sessions_data:
+  hf_cache:
