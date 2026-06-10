@@ -1,0 +1,15 @@
+.env
+.git
+.gitignore
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+chat_sessions.db
+full_dump.sql
+*.zip
+.qdrant/
+qdrant_storage/
+.DS_Store
+node_modules/

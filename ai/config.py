@@ -1,0 +1,72 @@
+"""Central configuration loaded from environment variables.
+
+Secrets are NEVER hard-coded. Copy `.env.example` to `.env` and fill values.
+"""
+import os
+from dataclasses import dataclass, field
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:  # python-dotenv optional at runtime
+    pass
+
+
+@dataclass
+class Settings:
+    # --- LLM (Groq, OpenAI-compatible) ---
+    groq_api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
+    llm_model: str = field(
+        default_factory=lambda: os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+    )
+    llm_fast_model: str = field(
+        default_factory=lambda: os.getenv("LLM_FAST_MODEL", "llama-3.1-8b-instant")
+    )
+    llm_temperature: float = field(
+        default_factory=lambda: float(os.getenv("LLM_TEMPERATURE", "0.2"))
+    )
+    max_tool_iterations: int = field(
+        default_factory=lambda: int(os.getenv("MAX_TOOL_ITERATIONS", "6"))
+    )
+
+    # --- Embeddings / RAG ---
+    hf_token: str = field(default_factory=lambda: os.getenv("HF_TOKEN", ""))
+    embedding_model: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    )
+    # Qdrant vector store (separate AI datastore; main app DB stays untouched).
+    qdrant_url: str = field(default_factory=lambda: os.getenv("QDRANT_URL", "http://localhost:6333"))
+    qdrant_api_key: str = field(default_factory=lambda: os.getenv("QDRANT_API_KEY", ""))
+    kb_collection: str = field(
+        default_factory=lambda: os.getenv("KB_COLLECTION", "nutrition_kb")
+    )
+    rag_top_k: int = field(default_factory=lambda: int(os.getenv("RAG_TOP_K", "5")))
+    rag_min_score: float = field(
+        default_factory=lambda: float(os.getenv("RAG_MIN_SCORE", "0.35"))
+    )
+
+    # --- Web search (Tavily) ---
+    tavily_api_key: str = field(default_factory=lambda: os.getenv("TAVILY_API_KEY", ""))
+
+    # --- Conversation sessions ---
+    # Backend for storing chat history. "sqlite" (durable, default) or "postgres"
+    # via SESSION_DB_URL, or "memory" (ephemeral, dev only). This is a SEPARATE
+    # datastore; the main application DB is never written to.
+    session_backend: str = field(
+        default_factory=lambda: os.getenv("SESSION_BACKEND", "sqlite")
+    )
+    # SQLAlchemy URL for the durable session store. Examples:
+    #   sqlite:///./chat_sessions.db
+    #   postgresql+psycopg2://user:pass@host:5432/ai_chat
+    session_db_url: str = field(
+        default_factory=lambda: os.getenv("SESSION_DB_URL", "sqlite:///./chat_sessions.db")
+    )
+    # How many recent turns are fed to the LLM as context. The FULL transcript is
+    # always retained regardless of this value; this only bounds prompt size.
+    context_turns: int = field(
+        default_factory=lambda: int(os.getenv("CONTEXT_TURNS", "20"))
+    )
+
+
+settings = Settings()
