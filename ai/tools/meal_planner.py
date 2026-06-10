@@ -16,20 +16,15 @@ SCHEMA = {
         "description": (
             "Generate a structured multi-day meal plan from the app catalog, "
             "respecting the user's calorie/protein targets, diet and allergies. "
-            "Use for 'make me a meal plan', 'plan my week', 'diet plan'. "
-            "DEFAULT PATH: pass `user_id` and the system loads that user's "
-            "stored, already-translated profile — do NOT ask for stats they've "
-            "already saved. Only pass `profile` to OVERRIDE when the user "
-            "explicitly states different stats (e.g. for a friend)."
+            "Use for 'make me a meal plan', 'plan my week', 'diet plan'. The "
+            "user's stored profile is loaded automatically from their session — "
+            "do NOT ask for an account/user id or for stats they've already "
+            "saved. Only pass `profile` to OVERRIDE when the user explicitly "
+            "states different stats (e.g. for a friend)."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "user_id": {
-                    "type": "string",
-                    "description": "Preferred input. The system loads this "
-                    "user's stored, translated profile; no manual stats needed.",
-                },
                 "days": {"type": "integer", "default": 3, "minimum": 1, "maximum": 14},
                 "meals_per_day": {"type": "integer", "default": 3, "minimum": 1, "maximum": 6},
                 "profile": PROFILE_ARG_SCHEMA,
@@ -40,7 +35,7 @@ SCHEMA = {
 
 
 def run(args: dict, ctx) -> dict:
-    # Inputs: args (user_id?, days?=3, meals_per_day?=3, profile?), ctx (ToolContext).
+    # Inputs: args (days?=3, meals_per_day?=3, profile?), ctx (ToolContext; supplies user_id).
     profile, missing = get_profile(args, ctx)
     if profile is None:
         return need_profile_response(missing)

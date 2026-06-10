@@ -23,11 +23,10 @@ _FALLBACK_REPLY = (
 
 class Orchestrator:
     # Drives the tool-calling conversation with the LLM.
-    def __init__(self, llm, build_context):
-        # Inputs: llm (LLMProvider), build_context (callable -> fresh ToolContext;
-        # currently unused, context is passed per request to handle()).
+    def __init__(self, llm):
+        # Input: llm (LLMProvider). A fresh ToolContext is passed per request to
+        # handle(), so no context factory is needed here.
         self._llm = llm
-        self._build_context = build_context
 
     def _final_text(self, messages: list) -> str:
         # Input: messages (current conversation). Forces a tool-free completion

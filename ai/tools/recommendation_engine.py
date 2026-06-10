@@ -10,22 +10,17 @@ SCHEMA = {
     "function": {
         "name": "recommendation_engine",
         "description": (
-            "Recommend the best-matching meals from the app's catalog for a "
-            "user. Use for 'what should I eat', 'recommend meals', goal-based "
-            "suggestions. DEFAULT PATH: pass `user_id` and the system loads that "
-            "user's stored, already-translated profile (targets, diet, "
-            "allergies) — do NOT ask the user to re-enter stats they've already "
-            "saved. Only pass `profile` to OVERRIDE when the user explicitly "
+            "Recommend the best-matching meals from the app's catalog for the "
+            "current user. Use for 'what should I eat', 'recommend meals', and "
+            "goal-based suggestions. The user's stored profile (targets, diet, "
+            "allergies) is loaded automatically from their session — do NOT ask "
+            "for an account/user id, and do NOT ask them to re-enter saved "
+            "stats. Only pass `profile` to OVERRIDE when the user explicitly "
             "states different stats (e.g. for a friend or a hypothetical)."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "user_id": {
-                    "type": "string",
-                    "description": "Preferred input. The system loads this "
-                    "user's stored, translated profile; no manual stats needed.",
-                },
                 "top_n": {"type": "integer", "default": 10},
                 "profile": PROFILE_ARG_SCHEMA,
             },
@@ -35,7 +30,7 @@ SCHEMA = {
 
 
 def run(args: dict, ctx) -> dict:
-    # Inputs: args (user_id?, top_n?=10, profile?), ctx (ToolContext).
+    # Inputs: args (top_n?=10, profile?), ctx (ToolContext; supplies user_id).
     # Resolves the profile then returns ranked catalog recommendations.
     profile, missing = get_profile(args, ctx)
     if profile is None:

@@ -209,7 +209,3 @@ def build_session_store():
         return SqlSessionStore(settings.session_db_url)
     except Exception:
         return InMemorySessionStore()
-
-
-# Backwards-compatible alias.
-SessionStore = InMemorySessionStore

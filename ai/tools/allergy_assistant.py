@@ -25,7 +25,6 @@ SCHEMA = {
                     "items": {"type": "string"},
                     "description": "Free-text ingredient names to check.",
                 },
-                "user_id": {"type": "string"},
             },
         },
     },
@@ -33,7 +32,7 @@ SCHEMA = {
 
 
 def run(args: dict, ctx) -> dict:
-    # Inputs: args (meal_id?, ingredients?, user_id?), ctx (ToolContext).
+    # Inputs: args (meal_id?, ingredients?), ctx (ToolContext; supplies user_id).
     # Returns detected allergens, the user's allergies, and any conflicts.
     ingredient_names = list(args.get("ingredients") or [])
     meal_name = None

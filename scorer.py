@@ -2,7 +2,7 @@
 import math
 
 from models import Meal, UserProfile, ScoredMeal
-from nutrition import NutritionTargets, CALS_PER_G, DIET_MACRO_RANGES
+from nutrition import NutritionTargets, DIET_MACRO_RANGES, macro_calorie_fractions
 
 # Goal -> relative weight of each score component.
 SCORE_WEIGHTS = {
@@ -52,12 +52,8 @@ def _diet_compatibility_score(meal: Meal, diet: str) -> float:
     rules = DIET_MACRO_RANGES.get(diet, {})
     if not rules or meal.calories <= 0:
         return 0.5
-    carb_cals = meal.total_carbohydrate * CALS_PER_G["carb"]
-    protein_cals = meal.protein * CALS_PER_G["protein"]
-    fat_cals = meal.total_fat * CALS_PER_G["fat"]
-    carb_pct = carb_cals / meal.calories
-    protein_pct = protein_cals / meal.calories
-    fat_pct = fat_cals / meal.calories
+    pct = macro_calorie_fractions(meal)
+    carb_pct, protein_pct, fat_pct = pct["carb"], pct["protein"], pct["fat"]
     sub_scores = []
     if diet == "keto":
         carb_score = max(0.0, 1.0 - (carb_pct / rules["carb_max_pct"]))

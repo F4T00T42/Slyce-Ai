@@ -59,7 +59,7 @@ def init_chat(engine, recommender) -> None:
     except Exception:
         retriever = None
     _state["retriever"] = retriever
-    _state["orchestrator"] = Orchestrator(_state["llm"], None)
+    _state["orchestrator"] = Orchestrator(_state["llm"])
 
 
 def _get_state() -> dict:

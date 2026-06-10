@@ -47,6 +47,19 @@ DIET_MACRO_RANGES = {
 CALS_PER_G = {"carb": 4.0, "protein": 4.0, "fat": 9.0}
 
 
+def macro_calorie_fractions(meal) -> dict:
+    # Input: meal (Meal). Returns {carb, protein, fat} as fractions of total
+    # calories (0.0 each when calories are missing). Single source of truth for
+    # the macro math shared by the diet filters and the scorer.
+    if meal.calories <= 0:
+        return {"carb": 0.0, "protein": 0.0, "fat": 0.0}
+    return {
+        "carb": (meal.total_carbohydrate * CALS_PER_G["carb"]) / meal.calories,
+        "protein": (meal.protein * CALS_PER_G["protein"]) / meal.calories,
+        "fat": (meal.total_fat * CALS_PER_G["fat"]) / meal.calories,
+    }
+
+
 @dataclass
 class NutritionTargets:
     # Computed daily + per-meal calorie/protein targets, plus BMR/TDEE.

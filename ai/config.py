@@ -20,9 +20,6 @@ class Settings:
     llm_model: str = field(
         default_factory=lambda: os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
     )
-    llm_fast_model: str = field(
-        default_factory=lambda: os.getenv("LLM_FAST_MODEL", "llama-3.1-8b-instant")
-    )
     llm_temperature: float = field(
         default_factory=lambda: float(os.getenv("LLM_TEMPERATURE", "0.2"))
     )

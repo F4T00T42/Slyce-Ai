@@ -4,37 +4,22 @@ Sources, merged in this order: (1) a stored profile loaded by user_id, then
 (2) explicit fields from the backend or user (a friend's stats) override it.
 The app DB has no fitness goal; it defaults to "maintenance" unless supplied.
 """
-from models import UserProfile
-
-# Stored/selected FoodPreference name -> canonical diet enum. Only macro-
-# enforceable plans constrain results; ingredient-based plans (vegetarian/vegan/
-# pescatarian/gluten free/dairy free) are accepted but map to "balanced".
-DIET_PREFERENCE_MAP = {
-    "keto": "keto",
-    "low carb": "low_carb",
-    "high protein": "high_protein",
-    "mediterranean": "mediterranean",
-    "vegetarian": "balanced",
-    "vegan": "balanced",
-    "pescatarian": "balanced",
-    "gluten free": "balanced",
-    "dairy free": "balanced",
-}
+from models import UserProfile, normalize_diet
 
 
 def _coarse_diet(diet_preferences: list[str], explicit: str | None) -> str:
     # Inputs: diet_preferences (selected/stored plan names), explicit (caller diet).
-    # Returns explicit if given, else the first macro-enforceable plan, else "balanced".
+    # Returns explicit if given, else the first macro-enforceable plan among the
+    # preferences, else "balanced". Plan names are canonicalized via normalize_diet
+    # (ingredient-based plans like vegetarian/vegan collapse to "balanced", which
+    # is not macro-enforceable, so they don't constrain results).
     if explicit:
         return explicit
-    fallback = "balanced"
     for pref in diet_preferences or []:
-        mapped = DIET_PREFERENCE_MAP.get(pref.strip().lower())
-        if mapped and mapped != "balanced":
+        mapped = normalize_diet(pref)
+        if mapped != "balanced":
             return mapped
-        if mapped:
-            fallback = mapped
-    return fallback
+    return "balanced"
 
 
 def resolve_profile(

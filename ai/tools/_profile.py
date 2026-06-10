@@ -3,14 +3,15 @@ from ai.profile_context import resolve_profile
 
 
 def get_profile(args: dict, ctx):
-    # Inputs: args (tool args; may carry profile/user_id), ctx (ToolContext).
-    # Priority: explicit tool args > ctx.profile > stored profile by user_id.
+    # Inputs: args (tool args; may carry an explicit `profile` override), ctx
+    # (ToolContext). The user_id ALWAYS comes from ctx (injected by the backend);
+    # the model never supplies it. Priority: ctx.profile > explicit profile arg /
+    # ctx.explicit_profile > stored profile loaded by ctx.user_id.
     # Returns (profile or None, missing_required_fields).
     if ctx.profile is not None and not args.get("profile"):
         return ctx.profile, []
     explicit = args.get("profile") or ctx.explicit_profile
-    user_id = args.get("user_id") or ctx.user_id
-    return resolve_profile(explicit, user_id, ctx.customer_repo)
+    return resolve_profile(explicit, ctx.user_id, ctx.customer_repo)
 
 
 # Human-friendly labels for the required fields when asking the user.
