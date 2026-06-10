@@ -1,9 +1,7 @@
-"""SQLAlchemy Core table definitions mapped to the REAL application schema.
+"""SQLAlchemy Core table definitions mapped to the real application schema.
 
-Notion: this replaces the original mock schema. Nutrition is denormalized onto
-`menus.MealSizes`; descriptive fields live on `menus.MenuMeals`.
-
-All tables are used read-only.
+Nutrition is denormalized onto menus.MealSizes; descriptive fields live on
+menus.MenuMeals. All tables are used read-only.
 """
 from sqlalchemy import (
     Boolean,
@@ -19,14 +17,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 
+# One MetaData per Postgres schema namespace.
 menus_meta = MetaData(schema="menus")
 food_meta = MetaData(schema="Food")
 customers_meta = MetaData(schema="customers")
 restaurants_meta = MetaData(schema="restaurants")
 
-_UUID = UUID(as_uuid=False)
+_UUID = UUID(as_uuid=False)  # keep UUIDs as strings
 
 # --- menus schema -----------------------------------------------------------
+# Orderable meal sizes with denormalized per-size nutrition.
 meal_sizes_table = Table(
     "MealSizes",
     menus_meta,
@@ -55,6 +55,7 @@ meal_sizes_table = Table(
     Column("Tags", Text),
 )
 
+# Conceptual meals (name/description/availability/restaurant).
 menu_meals_table = Table(
     "MenuMeals",
     menus_meta,
@@ -76,6 +77,7 @@ menu_categories_table = Table(
     Column("Name", String),
 )
 
+# Meal -> food link (composite PK MealId+FoodId).
 meal_ingredient_table = Table(
     "MealIngredient",
     menus_meta,
@@ -84,6 +86,7 @@ meal_ingredient_table = Table(
     Column("Name", Text),
 )
 
+# Per-size ingredient grams (composite PK MealSizeId+MealIngredientId).
 ingredient_quantities_table = Table(
     "IngredientQuantities",
     menus_meta,
@@ -93,6 +96,7 @@ ingredient_quantities_table = Table(
 )
 
 # --- Food schema ------------------------------------------------------------
+# Per-100g nutrition reference for foods/ingredients.
 foods_table = Table(
     "Foods",
     food_meta,
@@ -133,6 +137,7 @@ food_preferences_table = Table(
 )
 
 # --- customers schema -------------------------------------------------------
+# Stored customer profile; allergen_ids/diet_preference_ids reference Food.* tables.
 customers_table = Table(
     "Customers",
     customers_meta,

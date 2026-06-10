@@ -1,22 +1,18 @@
 """Conversation session storage.
 
-Two concerns are intentionally separated:
+Two separate concerns:
+1. Transcript (system of record) — the FULL conversation, unbounded, persisted
+   so the user can scroll back.
+2. Context window — only the last N turns, fed to the LLM to bound prompt size.
+   The model not seeing older turns does NOT delete them.
 
-1. **Transcript (system of record)** — the FULL conversation, unbounded, kept so
-   the user can scroll back through it. Persisted durably.
-2. **Context window** — only the last N turns, fed to the LLM to bound prompt
-   size/cost. The model not remembering older turns does NOT delete them; they
-   still exist in the transcript.
+Backends (same interface):
+- InMemorySessionStore — per-process dict; lost on restart. Dev/testing only.
+- SqlSessionStore      — durable; SQLite by default or any SQLAlchemy URL
+                         (e.g. Postgres). A SEPARATE datastore; the app DB is
+                         never written to.
 
-Two backends implement the same interface:
-
-- `InMemorySessionStore`  — per-process dict; lost on restart. Dev/testing only.
-- `SqlSessionStore`       — durable; SQLite by default, or any SQLAlchemy URL
-                            (e.g. Postgres) for multi-worker deployments. This
-                            is a SEPARATE datastore; the main app DB is never
-                            written to.
-
-Use `build_session_store()` to construct the configured backend.
+Use build_session_store() to construct the configured backend.
 """
 from __future__ import annotations
 
@@ -29,14 +25,12 @@ from ai.config import settings
 
 
 def _now() -> datetime:
+    # Current UTC timestamp.
     return datetime.now(timezone.utc)
 
 
 class InMemorySessionStore:
-    """Ephemeral, per-process store. History is lost on restart and is NOT
-    shared across workers. Keeps the full transcript in memory (unbounded).
-    """
-
+    # Ephemeral per-process store; full transcript kept in memory (unbounded).
     def __init__(self) -> None:
         self._data: dict[str, list[dict]] = {}
         self._lock = threading.Lock()
@@ -48,6 +42,7 @@ class InMemorySessionStore:
         assistant_msg: str,
         metadata: Optional[dict] = None,
     ) -> None:
+        # Inputs: session_id, user_msg, assistant_msg, metadata (assistant-turn extras).
         if not session_id:
             return
         ts = _now().isoformat()
@@ -62,7 +57,7 @@ class InMemorySessionStore:
             })
 
     def get_context(self, session_id: str, max_turns: int) -> list[dict]:
-        """Return the last `max_turns` exchanges as [{role, content}] for the LLM."""
+        # Inputs: session_id, max_turns (exchanges to return). Returns [{role, content}].
         if not session_id:
             return []
         with self._lock:
@@ -73,7 +68,8 @@ class InMemorySessionStore:
     def get_transcript(
         self, session_id: str, limit: Optional[int] = None, offset: int = 0
     ) -> list[dict]:
-        """Return the FULL stored transcript (newest-last), optionally paginated."""
+        # Inputs: session_id, limit (page size; None = all), offset (start index).
+        # Returns the full stored transcript (oldest first), optionally paginated.
         if not session_id:
             return []
         with self._lock:
@@ -85,17 +81,16 @@ class InMemorySessionStore:
         return hist
 
     def reset(self, session_id: str) -> None:
+        # Input: session_id. Drops the entire conversation.
         with self._lock:
             self._data.pop(session_id, None)
 
 
 class SqlSessionStore:
-    """Durable store backed by SQLAlchemy. Works with SQLite (default) or any
-    other SQLAlchemy URL such as Postgres. Creates its own table on init; this
-    is a dedicated AI datastore and does not touch the application's tables.
-    """
-
+    # Durable store on SQLAlchemy (SQLite default or Postgres). Owns its own
+    # chat_messages table; never touches the application's tables.
     def __init__(self, db_url: str) -> None:
+        # Input: db_url (SQLAlchemy URL). Creates the engine + chat_messages table.
         from sqlalchemy import (
             create_engine,
             MetaData,
@@ -116,8 +111,7 @@ class SqlSessionStore:
 
         self._engine = create_engine(db_url, connect_args=connect_args, future=True)
         self._meta = MetaData()
-        # Use Integer PK for sqlite autoincrement; BigInteger maps to bigserial
-        # on Postgres. Integer is portable and sufficient here.
+        # Integer PK is portable (autoincrement on SQLite, serial on Postgres).
         self._messages = Table(
             "chat_messages",
             self._meta,
@@ -138,6 +132,7 @@ class SqlSessionStore:
         assistant_msg: str,
         metadata: Optional[dict] = None,
     ) -> None:
+        # Inputs: session_id, user_msg, assistant_msg, metadata (assistant-turn extras).
         if not session_id:
             return
         ts = _now()
@@ -153,6 +148,7 @@ class SqlSessionStore:
             conn.execute(insert(self._messages), rows)
 
     def get_context(self, session_id: str, max_turns: int) -> list[dict]:
+        # Inputs: session_id, max_turns. Returns the last turns as [{role, content}].
         if not session_id:
             return []
         from sqlalchemy import select
@@ -169,6 +165,8 @@ class SqlSessionStore:
     def get_transcript(
         self, session_id: str, limit: Optional[int] = None, offset: int = 0
     ) -> list[dict]:
+        # Inputs: session_id, limit (page size; None = all), offset (start index).
+        # Returns the full transcript (oldest first) with timestamps + metadata.
         if not session_id:
             return []
         from sqlalchemy import select
@@ -192,6 +190,7 @@ class SqlSessionStore:
         return out
 
     def reset(self, session_id: str) -> None:
+        # Input: session_id. Deletes all rows for that conversation.
         from sqlalchemy import delete
 
         t = self._messages
@@ -200,21 +199,15 @@ class SqlSessionStore:
 
 
 def build_session_store():
-    """Construct the configured session store.
-
-    - SESSION_BACKEND=sqlite|postgres|sql -> durable SqlSessionStore (SESSION_DB_URL)
-    - SESSION_BACKEND=memory               -> ephemeral InMemorySessionStore
-
-    Falls back to in-memory if the durable backend can't be initialized (e.g.
-    SQLAlchemy missing), so the chat endpoint always works.
-    """
+    # Construct the configured store: SESSION_BACKEND=memory -> InMemory;
+    # sqlite/postgres/sql -> SqlSessionStore(SESSION_DB_URL). Falls back to
+    # in-memory if the durable backend can't be initialized.
     backend = (settings.session_backend or "sqlite").strip().lower()
     if backend in ("memory", "inmemory", "none"):
         return InMemorySessionStore()
     try:
         return SqlSessionStore(settings.session_db_url)
     except Exception:
-        # Durable store unavailable; degrade gracefully to in-memory.
         return InMemorySessionStore()
 
 

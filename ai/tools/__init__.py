@@ -1,9 +1,7 @@
 """Tool registry. Each tool module exposes:
-  - SCHEMA: an OpenAI/Groq function-tool JSON schema dict
-  - run(args: dict, ctx) -> dict
-
-`ctx` is a ToolContext carrying repositories, retriever, web client and the
-resolved profile/session info.
+  - SCHEMA: a Groq/OpenAI function-tool JSON schema dict
+  - run(args, ctx) -> dict
+ctx is a ToolContext carrying repos, retriever, web client, and resolved profile.
 """
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -31,6 +29,9 @@ _MODULES = [
 
 @dataclass
 class ToolContext:
+    # Per-request bundle passed to every tool. Fields: engine, the repositories,
+    # retriever, web_client, recommender, resolved profile, explicit_profile,
+    # user_id, and citations (accumulated source list).
     engine: Any = None
     meal_repo: Any = None
     ingredient_repo: Any = None
@@ -51,6 +52,8 @@ TOOL_FUNCTIONS: dict[str, Callable] = {m.SCHEMA["function"]["name"]: m.run for m
 
 
 def execute(name: str, args: dict, ctx: ToolContext) -> dict:
+    # Inputs: name (tool name), args (tool arguments), ctx (ToolContext).
+    # Dispatches to the tool; returns {error} for unknown tools or exceptions.
     fn = TOOL_FUNCTIONS.get(name)
     if fn is None:
         return {"error": f"Unknown tool: {name}"}

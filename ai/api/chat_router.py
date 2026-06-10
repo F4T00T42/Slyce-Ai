@@ -1,12 +1,12 @@
-"""FastAPI router exposing the chat endpoints. Wires repositories + orchestrator.
+"""FastAPI router for the chat endpoints; wires repositories + orchestrator.
 
-Dependencies (engine, recommender, retriever, session store) are created once
-and reused. The main app DB engine is shared read-only; the retriever uses the
-separate Qdrant store and the session store uses its own separate datastore.
+Shared resources (DB engine, recommender, retriever, session store) are built
+once. The app DB engine is read-only; the retriever uses Qdrant and the session
+store uses its own separate datastore.
 
 Endpoints:
   POST   /chat                      -> send a message, get a reply
-  GET    /chat/history/{session_id} -> full transcript for display (unbounded)
+  GET    /chat/history/{session_id} -> full transcript for display
   DELETE /chat/history/{session_id} -> clear a conversation
 """
 from fastapi import APIRouter, Depends, Query
@@ -26,11 +26,13 @@ from ai.profile_context import resolve_profile
 
 router = APIRouter(tags=["chat"])
 
+# Process-wide shared resources, populated by init_chat().
 _state: dict = {}
 
 
 def init_chat(engine, recommender) -> None:
-    """Called from app startup to inject shared, already-built resources."""
+    # Inputs: engine (shared read-only SQLAlchemy engine), recommender
+    # (MealRecommender). Builds repos, session store, LLM, retriever, orchestrator.
     from db.meal_repository import MealRepository
     from db.ingredient_repository import IngredientRepository
     from db.restaurant_repository import RestaurantRepository
@@ -48,7 +50,7 @@ def init_chat(engine, recommender) -> None:
     _state["sessions"] = build_session_store()
     _state["llm"] = LLMProvider()
 
-    # Retriever is optional: only enable if RAG deps/collection are available.
+    # Retriever is optional: enabled only if RAG deps/collection are reachable.
     retriever = None
     try:
         from ai.rag.retriever import Retriever
@@ -61,6 +63,7 @@ def init_chat(engine, recommender) -> None:
 
 
 def _get_state() -> dict:
+    # Dependency that returns shared state or errors if init_chat() wasn't run.
     if not _state:
         raise RuntimeError("Chat not initialized; call init_chat() at startup.")
     return _state
@@ -68,6 +71,8 @@ def _get_state() -> dict:
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, state: dict = Depends(_get_state)) -> ChatResponse:
+    # Inputs: req (ChatRequest: message, session_id?, user_id?, profile?),
+    # state (shared resources). Resolves profile, runs orchestrator, persists turn.
     explicit = req.profile.model_dump(exclude_none=True) if req.profile else None
     profile, _missing = resolve_profile(explicit, req.user_id, state["customer_repo"])
 
@@ -85,7 +90,7 @@ def chat(req: ChatRequest, state: dict = Depends(_get_state)) -> ChatResponse:
         user_id=req.user_id,
     )
 
-    # Only the recent window is fed to the LLM; the full transcript is retained.
+    # Feed only the recent window to the LLM; the full transcript is retained.
     history = state["sessions"].get_context(req.session_id, settings.context_turns)
     result = state["orchestrator"].handle(req.message, ctx, history=history)
 
@@ -114,11 +119,8 @@ def get_history(
     offset: int = Query(default=0, ge=0),
     state: dict = Depends(_get_state),
 ) -> HistoryResponse:
-    """Return the full stored transcript for a session (for UI display).
-
-    `limit`/`offset` paginate from the start (oldest first). Omit `limit` to get
-    the entire conversation.
-    """
+    # Inputs: session_id, limit (page size; None = all), offset (start index),
+    # state. Returns the full stored transcript (oldest first) for display.
     rows = state["sessions"].get_transcript(session_id, limit=limit, offset=offset)
     return HistoryResponse(
         session_id=session_id,
@@ -129,6 +131,6 @@ def get_history(
 
 @router.delete("/chat/history/{session_id}")
 def delete_history(session_id: str, state: dict = Depends(_get_state)) -> dict:
-    """Clear a conversation (e.g. a 'New chat' / 'Delete conversation' action)."""
+    # Inputs: session_id, state. Clears the conversation ('New chat'/'Delete').
     state["sessions"].reset(session_id)
     return {"status": "deleted", "session_id": session_id}

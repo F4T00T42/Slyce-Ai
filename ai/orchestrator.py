@@ -1,10 +1,8 @@
-"""The orchestration loop: User -> LLM -> Tool Selection -> Tool Execution ->
-LLM Response.
+"""Orchestration loop: User -> LLM -> tool selection -> tool execution -> reply.
 
-The LLM decides which tool(s) to call. We execute them, feed results back, and
-repeat until the model produces a final answer or we hit the iteration cap.
-Information priority (DB > KB > web) is enforced via the system prompt and the
-tool descriptions; web_search is described as a last resort.
+The LLM picks tool(s); we execute them, feed results back, and repeat until it
+produces a final answer or hits the iteration cap. Information priority
+(DB > KB > web) is enforced via the system prompt and tool descriptions.
 """
 import json
 
@@ -14,14 +12,17 @@ from ai.tools import TOOL_SCHEMAS, execute, ToolContext
 
 
 class Orchestrator:
+    # Drives the tool-calling conversation with the LLM.
     def __init__(self, llm, build_context):
-        """`llm` is an LLMProvider. `build_context` is a callable returning a
-        fresh ToolContext for each request (carrying repositories etc.).
-        """
+        # Inputs: llm (LLMProvider), build_context (callable -> fresh ToolContext;
+        # currently unused, context is passed per request to handle()).
         self._llm = llm
         self._build_context = build_context
 
     def handle(self, message: str, ctx: ToolContext, history: list | None = None) -> dict:
+        # Inputs: message (user text), ctx (ToolContext with repos/profile),
+        # history (prior [{role, content}] turns for context).
+        # Returns {reply, used_tools, citations}.
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT + "\n\n" + TOOL_ROUTING_HINT}
         ]
@@ -36,7 +37,7 @@ class Orchestrator:
             choice = response.choices[0].message
             tool_calls = getattr(choice, "tool_calls", None)
 
-            # Append the assistant turn (with any tool calls) to the transcript.
+            # Record the assistant turn (with any tool calls) in the transcript.
             assistant_msg = {"role": "assistant", "content": choice.content or ""}
             if tool_calls:
                 assistant_msg["tool_calls"] = [
@@ -52,6 +53,7 @@ class Orchestrator:
                 ]
             messages.append(assistant_msg)
 
+            # No tool calls -> the model produced a final answer.
             if not tool_calls:
                 return {
                     "reply": choice.content or "",
@@ -59,7 +61,7 @@ class Orchestrator:
                     "citations": ctx.citations,
                 }
 
-            # Execute each requested tool and feed results back.
+            # Execute each requested tool and append its result.
             for tc in tool_calls:
                 name = tc.function.name
                 used_tools.append(name)
@@ -77,7 +79,7 @@ class Orchestrator:
                     }
                 )
 
-        # Final attempt without tools to force a textual answer.
+        # Iteration cap hit: force a final textual answer with tools disabled.
         response = self._llm.chat(messages, tools=None)
         return {
             "reply": response.choices[0].message.content or "",

@@ -1,9 +1,7 @@
 """Ingest the knowledge base into Qdrant.
 
-Reads `.md` / `.txt` files from a directory (default: knowledge_base/docs),
-splits them into overlapping chunks, embeds with BGE, and upserts to Qdrant.
-
-Each file may start with a YAML-ish front matter:
+Reads .md/.txt files from a directory, splits them into overlapping chunks,
+embeds with BGE, and upserts to Qdrant. Files may start with front matter:
     ---
     title: Dietary Fiber
     source: https://ods.od.nih.gov/factsheets/Fiber
@@ -21,6 +19,8 @@ from ai.rag.vector_store import VectorStore
 
 
 def _parse_front_matter(text: str, filename: str) -> tuple[dict, str]:
+    # Inputs: text (file contents), filename (used for the default title).
+    # Returns (metadata dict with title/source, body text without front matter).
     meta = {"title": os.path.splitext(os.path.basename(filename))[0], "source": ""}
     m = re.match(r"^---\s*\n(.*?)\n---\s*\n", text, re.DOTALL)
     if m:
@@ -33,6 +33,7 @@ def _parse_front_matter(text: str, filename: str) -> tuple[dict, str]:
 
 
 def chunk_text(text: str, size: int = 800, overlap: int = 150) -> list[str]:
+    # Inputs: text, size (words per chunk), overlap (shared words between chunks).
     words = text.split()
     chunks = []
     step = max(size - overlap, 1)
@@ -46,6 +47,8 @@ def chunk_text(text: str, size: int = 800, overlap: int = 150) -> list[str]:
 
 
 def ingest(docs_dir: str) -> int:
+    # Input: docs_dir (folder of .md/.txt docs). Embeds + upserts all chunks.
+    # Returns the number of chunks ingested.
     embedder = Embedder()
     store = VectorStore()
     store.ensure_collection(embedder.dim)

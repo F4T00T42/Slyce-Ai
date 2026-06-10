@@ -1,38 +1,41 @@
-"""Nutrition math: BMR -> TDEE -> goal adjustment -> per-meal targets.
-
-Reused unchanged from the original recommendation engine.
-"""
+"""Nutrition math: BMR -> TDEE -> goal adjustment -> per-meal targets."""
 from dataclasses import dataclass
 
 from models import UserProfile
 
-# Physical activity level multipliers (PAL) for TDEE.
+# Activity level -> TDEE multiplier (PAL).
 ACTIVITY_MULTIPLIERS = {
     "sedentary": 1.2,
-    "light": 1.375,
-    "moderate": 1.55,
-    "active": 1.725,
-    "very_active": 1.9,
+    "lightly_active": 1.375,
+    "moderately_active": 1.55,
+    "very_active": 1.725,
+    "super_active": 1.9,
 }
 
-# Fractional calorie adjustment applied on top of TDEE per goal.
+# Goal -> fractional calorie adjustment on top of TDEE.
 GOAL_CALORIE_ADJUSTMENT = {
     "fat_loss": -0.20,
     "muscle_gain": +0.10,
     "maintenance": 0.00,
 }
 
-# Daily protein targets in grams per kg of body weight.
+# Goal -> daily protein target (grams per kg body weight).
 PROTEIN_TARGETS_G_PER_KG = {
     "fat_loss": 1.8,
     "muscle_gain": 2.2,
     "maintenance": 1.4,
 }
 
-# Hard macro ratio limits used by both the filter and the scorer.
+# Diet -> macro ratio limits, used by both the filter and the scorer.
 DIET_MACRO_RANGES = {
     "keto": {"carb_max_pct": 0.05, "fat_min_pct": 0.65, "protein_min_pct": 0.20},
+    "low_carb": {"carb_max_pct": 0.26, "protein_min_pct": 0.20},
     "high_protein": {"carb_max_pct": 0.40, "fat_max_pct": 0.35, "protein_min_pct": 0.30},
+    "mediterranean": {
+        "carb_range": (0.35, 0.60),
+        "fat_range": (0.20, 0.45),
+        "protein_range": (0.10, 0.35),
+    },
     "balanced": {
         "carb_range": (0.45, 0.65),
         "fat_range": (0.20, 0.35),
@@ -40,12 +43,13 @@ DIET_MACRO_RANGES = {
     },
 }
 
-# Caloric density used to convert macro grams to calories.
+# Calories per gram per macronutrient.
 CALS_PER_G = {"carb": 4.0, "protein": 4.0, "fat": 9.0}
 
 
 @dataclass
 class NutritionTargets:
+    # Computed daily + per-meal calorie/protein targets, plus BMR/TDEE.
     daily_calories: float
     meal_calories: float
     daily_protein_g: float
@@ -56,12 +60,13 @@ class NutritionTargets:
 
 
 def compute_bmr(profile: UserProfile) -> float:
-    # Mifflin-St Jeor equation.
+    # Input: profile (UserProfile). Returns BMR via Mifflin-St Jeor.
     base = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age
     return base + 5 if profile.gender == "male" else base - 161
 
 
 def compute_targets(profile: UserProfile, meals_per_day: int = 3) -> NutritionTargets:
+    # Inputs: profile (UserProfile), meals_per_day (split target across meals).
     bmr = compute_bmr(profile)
     multiplier = ACTIVITY_MULTIPLIERS.get(profile.activity_level, 1.55)
     tdee = bmr * multiplier

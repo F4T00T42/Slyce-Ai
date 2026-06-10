@@ -1,9 +1,8 @@
 """Tool: allergy assistance.
 
-Given a meal (by id) or a free-text ingredient list, flags which of the
-platform's known allergens are present, and checks against the user's declared
-allergies. Allergen detection uses ingredient-name matching (the DB has no
-explicit food->allergen mapping table).
+Flags platform-known allergens in a meal (by id) or a free-text ingredient list
+and compares them with the user's declared allergies. Detection is heuristic
+(ingredient-name matching), restricted to allergens present in Food.Allergens.
 """
 from ai.tools._profile import get_profile
 from db.ingredient_repository import IngredientRepository
@@ -34,6 +33,8 @@ SCHEMA = {
 
 
 def run(args: dict, ctx) -> dict:
+    # Inputs: args (meal_id?, ingredients?, user_id?), ctx (ToolContext).
+    # Returns detected allergens, the user's allergies, and any conflicts.
     ingredient_names = list(args.get("ingredients") or [])
     meal_name = None
     if args.get("meal_id"):
@@ -46,9 +47,10 @@ def run(args: dict, ctx) -> dict:
     if not ingredient_names:
         return {"status": "error", "message": "Provide a meal_id or ingredients."}
 
-    detected = IngredientRepository.detect_allergens(ingredient_names)
+    repo = ctx.ingredient_repo or IngredientRepository(ctx.engine)
+    detected = repo.detect_allergens(ingredient_names)
 
-    # Compare with the user's declared allergies if we can resolve a profile.
+    # Pull the user's declared allergies if a profile can be resolved.
     user_allergies = []
     profile, _ = get_profile(args, ctx)
     if profile is not None:

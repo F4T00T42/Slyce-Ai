@@ -1,13 +1,11 @@
-"""Shared helper for tools that need a resolved profile."""
+"""Shared helper for tools that need a resolved UserProfile."""
 from ai.profile_context import resolve_profile
 
 
 def get_profile(args: dict, ctx):
-    """Resolve a profile using (in priority) tool args > ctx.profile > stored.
-
-    Returns (profile, missing_fields). If the tool call carried explicit profile
-    fields, they override everything.
-    """
+    # Inputs: args (tool args; may carry profile/user_id), ctx (ToolContext).
+    # Priority: explicit tool args > ctx.profile > stored profile by user_id.
+    # Returns (profile or None, missing_required_fields).
     if ctx.profile is not None and not args.get("profile"):
         return ctx.profile, []
     explicit = args.get("profile") or ctx.explicit_profile
@@ -15,6 +13,7 @@ def get_profile(args: dict, ctx):
     return resolve_profile(explicit, user_id, ctx.customer_repo)
 
 
+# Reusable JSON schema for an explicit profile argument on profile-aware tools.
 PROFILE_ARG_SCHEMA = {
     "type": "object",
     "description": "Explicit profile fields. Provide when the user describes "
@@ -26,13 +25,19 @@ PROFILE_ARG_SCHEMA = {
         "gender": {"type": "string", "enum": ["male", "female"]},
         "activity_level": {
             "type": "string",
-            "enum": ["sedentary", "light", "moderate", "active", "very_active"],
+            "enum": [
+                "sedentary", "lightly_active", "moderately_active",
+                "very_active", "super_active",
+            ],
         },
         "goal": {
             "type": "string",
             "enum": ["fat_loss", "muscle_gain", "maintenance"],
         },
-        "diet": {"type": "string", "enum": ["keto", "high_protein", "balanced"]},
+        "diet": {
+            "type": "string",
+            "enum": ["keto", "low_carb", "high_protein", "mediterranean", "balanced"],
+        },
         "allergies": {"type": "array", "items": {"type": "string"}},
     },
 }

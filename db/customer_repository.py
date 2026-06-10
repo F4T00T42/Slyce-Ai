@@ -1,7 +1,6 @@
 """Read-only access to a customer's stored profile (customers.Customers).
 
-Maps DB fields to the shape used by `UserProfile`. Note the app DB does NOT
-store a fitness `goal`; it must be supplied by the caller/conversation.
+Maps DB fields to the UserProfile shape. The app DB has no fitness goal.
 """
 from datetime import date
 
@@ -10,21 +9,9 @@ from sqlalchemy import select
 from db.schema import customers_table as C
 from db.reference_repository import ReferenceRepository
 
-# DB ActivityRate text -> recommender activity_level enum.
-ACTIVITY_MAP = {
-    "sedentary": "sedentary",
-    "light": "light",
-    "lightlyactive": "light",
-    "moderate": "moderate",
-    "moderatelyactive": "moderate",
-    "active": "active",
-    "veryactive": "very_active",
-    "very_active": "very_active",
-    "extraactive": "very_active",
-}
-
 
 def _age_from_bday(bday) -> int | None:
+    # Input: bday (date or None). Returns age in years, or None if invalid/placeholder.
     if not isinstance(bday, date):
         return None
     if bday.year < 1900:  # guards '-infinity' / placeholder dates
@@ -34,16 +21,15 @@ def _age_from_bday(bday) -> int | None:
 
 
 class CustomerRepository:
+    # Loads stored profiles and resolves allergen/preference ids to names.
     def __init__(self, engine):
+        # Input: engine (SQLAlchemy engine).
         self._engine = engine
         self._ref = ReferenceRepository(engine)
 
     def get_profile(self, user_id: str) -> dict | None:
-        """Return a partial profile dict, or None if the customer is missing.
-
-        Fields that are unknown/incomplete in the DB are omitted so the caller
-        can fall back to conversation or defaults.
-        """
+        # Input: user_id (customers.Customers.Id).
+        # Returns a partial profile dict (unknown fields omitted), or None if missing.
         stmt = select(C).where(C.c.Id == user_id)
         with self._engine.connect() as conn:
             row = conn.execute(stmt).first()
@@ -66,9 +52,8 @@ class CustomerRepository:
             if g in ("male", "female"):
                 profile["gender"] = g
         if row.ActivityRate:
-            key = str(row.ActivityRate).strip().lower().replace(" ", "")
-            if key in ACTIVITY_MAP:
-                profile["activity_level"] = ACTIVITY_MAP[key]
+            # Stored verbatim; UserProfile normalizes any label to the enum.
+            profile["activity_level"] = str(row.ActivityRate).strip()
 
         profile["allergies"] = self._ref.names_for_ids(allergen_map, row.allergen_ids or [])
         profile["diet_preferences"] = self._ref.names_for_ids(

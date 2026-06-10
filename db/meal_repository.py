@@ -1,8 +1,7 @@
 """Read-only access to orderable meals (menus.MealSizes joined to MenuMeals).
 
-Each returned `Meal` is a meal *size* (the unit the app orders by), enriched
-with the parent meal's name/description/restaurant and, optionally, detected
-allergen tags from its ingredients.
+Each Meal is a meal size enriched with parent name/description/restaurant and,
+optionally, allergen tags detected from its ingredients.
 """
 from sqlalchemy import select
 
@@ -12,15 +11,19 @@ from db.ingredient_repository import IngredientRepository
 
 
 def _f(v) -> float:
+    # Input: v (numeric or None). Returns float, defaulting None to 0.0.
     return float(v) if v is not None else 0.0
 
 
 class MealRepository:
+    # Builds Meal objects from the catalog and attaches allergen tags.
     def __init__(self, engine):
+        # Input: engine (SQLAlchemy engine).
         self._engine = engine
         self._ingredients = IngredientRepository(engine)
 
     def _base_select(self):
+        # Shared MealSizes-join-MenuMeals SELECT used by every query.
         return select(
             MS.c.Id,
             MS.c.Name.label("size_name"),
@@ -51,6 +54,7 @@ class MealRepository:
         ).select_from(MS.join(MM, MS.c.MealId == MM.c.Id))
 
     def _map(self, row) -> Meal:
+        # Input: row (a _base_select result row). Returns a populated Meal.
         tags = []
         if row.Tags:
             tags = [t.strip() for t in str(row.Tags).replace(";", ",").split(",") if t.strip()]
@@ -87,18 +91,19 @@ class MealRepository:
         )
 
     def _attach_allergens(self, meals: list) -> None:
+        # Input: meals (list[Meal]). Sets .ingredients and merges allergens into .tags.
         menu_ids = list({m.menu_meal_id for m in meals if m.menu_meal_id})
         names_by_meal = self._ingredients.ingredient_names_for_meals(menu_ids)
         for m in meals:
             names = names_by_meal.get(m.menu_meal_id, [])
             m.ingredients = names
-            detected = IngredientRepository.detect_allergens(names)
-            # Merge detected allergens into tags (used by the allergen filter).
+            detected = self._ingredients.detect_allergens(names)
             merged = {t for t in m.tags}
             merged.update(detected)
             m.tags = sorted(merged)
 
     def get_all(self, only_available: bool = True, with_allergens: bool = True) -> list:
+        # Inputs: only_available (limit to available meals), with_allergens (attach tags).
         stmt = self._base_select()
         if only_available:
             stmt = stmt.where(MM.c.Available.is_(True))
@@ -109,6 +114,7 @@ class MealRepository:
         return meals
 
     def get_by_ids(self, size_ids: list, with_allergens: bool = True) -> list:
+        # Inputs: size_ids (list of MealSizes.Id), with_allergens (attach tags).
         if not size_ids:
             return []
         stmt = self._base_select().where(MS.c.Id.in_(size_ids))
@@ -120,6 +126,8 @@ class MealRepository:
 
     def search(self, query: str = None, max_calories: float = None,
                min_protein: float = None, limit: int = 20) -> list:
+        # Inputs: query (name/description ilike), max_calories, min_protein,
+        # limit (max rows, default 20). Returns matching available meals w/ allergens.
         stmt = self._base_select().where(MM.c.Available.is_(True))
         if query:
             like = f"%{query}%"

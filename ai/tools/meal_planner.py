@@ -1,8 +1,8 @@
 """Tool: generate a multi-day meal plan from the app catalog.
 
-Builds on the recommender's ranking. For each day it fills `meals_per_day`
-slots with distinct, allergen-safe, diet-compatible meals closest to the
-per-meal calorie/protein targets, rotating to add variety across days.
+Builds on the recommender's ranking. For each day it fills meals_per_day slots
+with distinct, allergen-safe, diet-compatible meals closest to the per-meal
+calorie/protein targets, rotating the ranked pool to vary meals across days.
 """
 from ai.tools._profile import get_profile, PROFILE_ARG_SCHEMA
 from nutrition import compute_targets
@@ -16,15 +16,23 @@ SCHEMA = {
         "description": (
             "Generate a structured multi-day meal plan from the app catalog, "
             "respecting the user's calorie/protein targets, diet and allergies. "
-            "Use for 'make me a meal plan', 'plan my week', 'diet plan'."
+            "Use for 'make me a meal plan', 'plan my week', 'diet plan'. "
+            "DEFAULT PATH: pass `user_id` and the system loads that user's "
+            "stored, already-translated profile — do NOT ask for stats they've "
+            "already saved. Only pass `profile` to OVERRIDE when the user "
+            "explicitly states different stats (e.g. for a friend)."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "profile": PROFILE_ARG_SCHEMA,
-                "user_id": {"type": "string"},
+                "user_id": {
+                    "type": "string",
+                    "description": "Preferred input. The system loads this "
+                    "user's stored, translated profile; no manual stats needed.",
+                },
                 "days": {"type": "integer", "default": 3, "minimum": 1, "maximum": 14},
                 "meals_per_day": {"type": "integer", "default": 3, "minimum": 1, "maximum": 6},
+                "profile": PROFILE_ARG_SCHEMA,
             },
         },
     },
@@ -32,6 +40,7 @@ SCHEMA = {
 
 
 def run(args: dict, ctx) -> dict:
+    # Inputs: args (user_id?, days?=3, meals_per_day?=3, profile?), ctx (ToolContext).
     profile, missing = get_profile(args, ctx)
     if profile is None:
         return {"status": "need_profile", "missing_fields": missing}
@@ -98,6 +107,7 @@ def run(args: dict, ctx) -> dict:
 
 
 def _targets_dict(t) -> dict:
+    # Input: t (NutritionTargets). Returns the daily/per-meal targets as a dict.
     return {
         "daily_calories": t.daily_calories,
         "meal_calories": t.meal_calories,

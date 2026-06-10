@@ -1,7 +1,8 @@
 """Tool: web search fallback (Tavily). LAST-RESORT only, per priority policy.
 
-The Tavily SDK is imported lazily. The web client is also injected via ctx for
-testing / provider swapping.
+Hard-gated behind user_requested: it refuses unless the user explicitly asked
+for (or agreed to) an internet search. The Tavily SDK is imported lazily; a web
+client can also be injected via ctx for testing.
 """
 from ai.config import settings
 
@@ -10,23 +11,35 @@ SCHEMA = {
     "function": {
         "name": "web_search",
         "description": (
-            "Search the public web for nutrition information. Use ONLY as a last "
-            "resort when the app database and the nutrition knowledge base cannot "
-            "answer. Always tell the user the answer came from the web."
+            "Search the public web for nutrition information. Call this ONLY "
+            "when the user has EXPLICITLY asked you to search the internet/web, "
+            "OR after you offered to search and the user agreed. NEVER call it "
+            "on your own initiative. If the database and knowledge base can't "
+            "answer, ask the user first, then call this only once they say yes. "
+            "Always tell the user the answer came from the web."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "query": {"type": "string"},
                 "max_results": {"type": "integer", "default": 5},
+                "user_requested": {
+                    "type": "boolean",
+                    "description": "Must be true. Set ONLY when the user "
+                    "explicitly asked for a web/internet search or agreed to "
+                    "one. If you haven't been asked/granted permission, do not "
+                    "call this tool — ask the user first.",
+                },
             },
-            "required": ["query"],
+            "required": ["query", "user_requested"],
         },
     },
 }
 
 
 def _client(ctx):
+    # Input: ctx (ToolContext). Returns the injected web client or a lazily-built
+    # Tavily client; raises if TAVILY_API_KEY is unset.
     if ctx.web_client is not None:
         return ctx.web_client
     from tavily import TavilyClient  # lazy import
@@ -39,6 +52,17 @@ def _client(ctx):
 
 
 def run(args: dict, ctx) -> dict:
+    # Inputs: args (query, user_requested, max_results?=5), ctx (ToolContext).
+    # Refuses unless user_requested is true; otherwise returns web results + cites them.
+    if not args.get("user_requested"):
+        return {
+            "status": "confirmation_required",
+            "message": (
+                "Do not search the web yet. Ask the user to confirm they want "
+                "an internet search, then call this tool again with "
+                "user_requested=true."
+            ),
+        }
     query = args.get("query", "").strip()
     if not query:
         return {"status": "error", "message": "query is required"}

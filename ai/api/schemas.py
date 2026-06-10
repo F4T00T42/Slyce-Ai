@@ -1,14 +1,13 @@
-"""Request/response models for the /chat endpoint."""
+"""Pydantic request/response models for the /chat endpoints."""
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
 class ProfileInput(BaseModel):
-    """Optional profile contract the backend may pass per request. Any subset
-    is accepted; missing required fields trigger a clarifying question.
-    """
-
+    # Optional per-request profile contract; any subset is accepted. Fields:
+    # weight, height, age, gender, activity_level, goal, diet, allergies,
+    # diet_preferences. Missing required fields trigger a clarifying question.
     weight: Optional[float] = None
     height: Optional[float] = None
     age: Optional[int] = None
@@ -21,6 +20,7 @@ class ProfileInput(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    # Fields: message (required), session_id?, user_id?, profile? (ProfileInput).
     message: str = Field(..., min_length=1)
     session_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -28,6 +28,7 @@ class ChatRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    # Fields: reply, used_tools, citations, session_id.
     reply: str
     used_tools: list[str] = []
     citations: list[str] = []
@@ -35,6 +36,7 @@ class ChatResponse(BaseModel):
 
 
 class TranscriptMessage(BaseModel):
+    # One stored transcript turn: role, content, created_at?, metadata?.
     role: str
     content: str
     created_at: Optional[str] = None
@@ -42,6 +44,7 @@ class TranscriptMessage(BaseModel):
 
 
 class HistoryResponse(BaseModel):
+    # Fields: session_id, messages (list of TranscriptMessage), count.
     session_id: str
     messages: list[TranscriptMessage] = []
     count: int = 0

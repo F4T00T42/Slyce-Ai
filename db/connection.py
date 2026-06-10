@@ -1,8 +1,4 @@
-"""SQLAlchemy engine for the Supabase Postgres app database (READ-ONLY use).
-
-The AI layer never writes to this database. Credentials come from env. We use
-NullPool + pgbouncer-friendly settings, matching the original engine.
-"""
+"""SQLAlchemy engine for the Postgres app database (used READ-ONLY)."""
 import os
 
 from sqlalchemy import create_engine
@@ -11,6 +7,7 @@ from sqlalchemy.pool import NullPool
 
 
 def _require(name: str) -> str:
+    # Input: name (env var name). Returns its value or raises if unset/empty.
     val = os.getenv(name)
     if not val:
         raise RuntimeError(f"Missing required env var: {name}")
@@ -18,6 +15,8 @@ def _require(name: str) -> str:
 
 
 def build_engine() -> Engine:
+    # Reads DB_HOST/DB_PORT(6543)/DB_NAME/DB_USER/DB_PASSWORD from env.
+    # NullPool + pgbouncer-friendly connect args; SSL required.
     host = _require("DB_HOST")
     port = os.getenv("DB_PORT", "6543")
     name = _require("DB_NAME")

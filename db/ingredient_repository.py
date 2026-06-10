@@ -1,9 +1,7 @@
-"""Ingredient-level access: composition + nutrition aggregation + allergen
-detection.
+"""Ingredient access: composition, nutrition aggregation, allergen detection.
 
-A meal's ingredients are reached via menus.MenuMeals.Id -> menus.MealIngredient
-(FoodId) -> Food.Foods. Per-size quantities live in menus.IngredientQuantities
-(MealSizeId, MealIngredientId == Food.Foods.Id).
+Path: menus.MenuMeals.Id -> menus.MealIngredient (FoodId) -> Food.Foods.
+Per-size grams live in menus.IngredientQuantities.
 """
 from sqlalchemy import select
 
@@ -12,9 +10,12 @@ from db.schema import (
     ingredient_quantities_table,
     meal_ingredient_table,
 )
+from db.reference_repository import ReferenceRepository
 
-# Map allergen names to substrings that, if found in an ingredient/food name,
-# imply the allergen is present. Heuristic (no explicit Food->Allergen table).
+# Allergen name -> ingredient-name substrings that imply it is present.
+# Food.Allergens is the source of truth for WHICH allergens exist; this dict
+# only supplies the detection heuristic. detect_allergens() returns only
+# allergens that ALSO exist in Food.Allergens. Add keywords for new allergens.
 ALLERGEN_KEYWORDS = {
     "Peanuts": ["peanut"],
     "Tree Nuts": ["almond", "walnut", "cashew", "pecan", "hazelnut", "pistachio", "nut"],
@@ -30,11 +31,15 @@ ALLERGEN_KEYWORDS = {
 
 
 class IngredientRepository:
+    # Reads ingredient composition and detects allergens for meals.
     def __init__(self, engine):
+        # Input: engine (SQLAlchemy engine).
         self._engine = engine
+        self._ref = ReferenceRepository(engine)
 
     def ingredient_names_for_meals(self, menu_meal_ids: list) -> dict:
-        """Return {menu_meal_id: [ingredient_name, ...]} for the given meals."""
+        # Input: menu_meal_ids (list of menus.MenuMeals.Id).
+        # Returns {menu_meal_id: [ingredient_name, ...]}.
         if not menu_meal_ids:
             return {}
         stmt = select(
@@ -48,9 +53,8 @@ class IngredientRepository:
         return out
 
     def composition_for_size(self, meal_size_id: str) -> list:
-        """Return ingredient rows for a meal size with quantity (grams) and the
-        ingredient's per-100g nutrition from Food.Foods.
-        """
+        # Input: meal_size_id (menus.MealSizes.Id).
+        # Returns ingredient rows with grams + per-100g nutrition scaled to grams.
         stmt = (
             select(
                 ingredient_quantities_table.c.Quantity,
@@ -85,12 +89,18 @@ class IngredientRepository:
                 )
         return rows
 
-    @staticmethod
-    def detect_allergens(ingredient_names: list) -> list:
-        """Heuristic allergen detection from ingredient names."""
-        found = set()
+    def detect_allergens(self, ingredient_names: list) -> list:
+        # Input: ingredient_names (list of ingredient strings).
+        # Returns detected allergens, restricted to Food.Allergens (DB spelling).
+        db_by_lower = {
+            name.lower(): name for name in self._ref.allergen_names()
+        }
         blob = " ".join(n.lower() for n in ingredient_names if n)
+        found = set()
         for allergen, keywords in ALLERGEN_KEYWORDS.items():
+            canonical = db_by_lower.get(allergen.lower())
+            if canonical is None:
+                continue  # not tracked in Food.Allergens -> ignore
             if any(kw in blob for kw in keywords):
-                found.add(allergen)
+                found.add(canonical)
         return sorted(found)

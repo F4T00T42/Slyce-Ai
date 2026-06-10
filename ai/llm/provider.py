@@ -1,6 +1,5 @@
-"""Thin wrapper around the Groq chat completions API (OpenAI-compatible,
-supports tool calling). The SDK is imported lazily so the module can be
-imported without the dependency installed.
+"""Thin wrapper around the Groq chat completions API (OpenAI-compatible, tool
+calling supported). The SDK is imported lazily so the module imports cheaply.
 """
 from typing import Any
 
@@ -8,12 +7,15 @@ from ai.config import settings
 
 
 class LLMProvider:
+    # Lazily-built Groq client exposing a single chat() method.
     def __init__(self, model: str | None = None, api_key: str | None = None):
+        # Inputs: model (override default model), api_key (override env key).
         self.model = model or settings.llm_model
         self._api_key = api_key or settings.groq_api_key
         self._client = None
 
     def _ensure_client(self):
+        # Build the Groq client on first use; raises if the key is missing.
         if self._client is None:
             from groq import Groq  # lazy import
 
@@ -29,6 +31,8 @@ class LLMProvider:
         tool_choice: str = "auto",
         temperature: float | None = None,
     ) -> Any:
+        # Inputs: messages (chat history), tools (tool schemas or None),
+        # tool_choice ("auto"/"none"/etc.), temperature (override default).
         client = self._ensure_client()
         kwargs: dict = {
             "model": self.model,

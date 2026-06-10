@@ -1,19 +1,30 @@
-"""Weighted meal scoring + ranking. Reused unchanged from the original engine."""
+"""Weighted meal scoring + ranking (calorie fit, protein fit, diet fit)."""
 import math
 
 from models import Meal, UserProfile, ScoredMeal
 from nutrition import NutritionTargets, CALS_PER_G, DIET_MACRO_RANGES
 
+# Goal -> relative weight of each score component.
 SCORE_WEIGHTS = {
     "fat_loss": {"calorie": 0.50, "protein": 0.35, "diet": 0.15},
     "muscle_gain": {"calorie": 0.35, "protein": 0.50, "diet": 0.15},
     "maintenance": {"calorie": 0.40, "protein": 0.25, "diet": 0.35},
 }
 
+# Width of the calorie Gaussian as a fraction of the target.
 CALORIE_SIGMA_FRACTION = 0.20
 
 
+def _range_score(value: float, lo: float, hi: float) -> float:
+    # Inputs: value (macro fraction), lo/hi (acceptable range bounds).
+    # Returns 1.0 at the midpoint, decaying linearly to 0 at the edges.
+    mid = (lo + hi) / 2
+    half = (hi - lo) / 2
+    return max(0.0, 1.0 - abs(value - mid) / max(half, 0.001))
+
+
 def _calorie_score(meal_cals: float, target_cals: float) -> float:
+    # Inputs: meal_cals (meal calories), target_cals (per-meal target).
     sigma = target_cals * CALORIE_SIGMA_FRACTION
     if sigma <= 0:
         return 0.0
@@ -21,6 +32,7 @@ def _calorie_score(meal_cals: float, target_cals: float) -> float:
 
 
 def _protein_score(meal_protein_g: float, target_protein_g: float, goal: str) -> float:
+    # Inputs: meal_protein_g, target_protein_g, goal (shapes the curve).
     if target_protein_g <= 0:
         return 0.0
     ratio = meal_protein_g / target_protein_g
@@ -36,6 +48,7 @@ def _protein_score(meal_protein_g: float, target_protein_g: float, goal: str) ->
 
 
 def _diet_compatibility_score(meal: Meal, diet: str) -> float:
+    # Inputs: meal (Meal), diet (canonical Diet). Returns 0..1 macro fit (0.5 if N/A).
     rules = DIET_MACRO_RANGES.get(diet, {})
     if not rules or meal.calories <= 0:
         return 0.5
@@ -50,15 +63,12 @@ def _diet_compatibility_score(meal: Meal, diet: str) -> float:
         carb_score = max(0.0, 1.0 - (carb_pct / rules["carb_max_pct"]))
         fat_score = min(fat_pct / max(rules["fat_min_pct"], 0.01), 1.0)
         sub_scores = [carb_score, fat_score]
+    elif diet == "low_carb":
+        sub_scores = [max(0.0, 1.0 - (carb_pct / rules["carb_max_pct"]))]
     elif diet == "high_protein":
         prot_score = min(protein_pct / rules["protein_min_pct"], 1.0)
         sub_scores = [prot_score]
-    elif diet == "balanced":
-        def _range_score(value, lo, hi):
-            mid = (lo + hi) / 2
-            half = (hi - lo) / 2
-            return max(0.0, 1.0 - abs(value - mid) / max(half, 0.001))
-
+    elif diet in ("mediterranean", "balanced"):
         sub_scores = [
             _range_score(carb_pct, *rules["carb_range"]),
             _range_score(protein_pct, *rules["protein_range"]),
@@ -68,6 +78,7 @@ def _diet_compatibility_score(meal: Meal, diet: str) -> float:
 
 
 def score_meal(meal: Meal, profile: UserProfile, targets: NutritionTargets) -> ScoredMeal:
+    # Inputs: meal (Meal), profile (UserProfile), targets (NutritionTargets).
     weights = SCORE_WEIGHTS.get(profile.goal, SCORE_WEIGHTS["maintenance"])
     cal_score = _calorie_score(meal.calories, targets.meal_calories)
     prot_score = _protein_score(meal.protein, targets.meal_protein_g, profile.goal)
@@ -95,6 +106,8 @@ def score_meal(meal: Meal, profile: UserProfile, targets: NutritionTargets) -> S
 
 
 def rank_meals(meals, profile, targets, top_n: int = 10):
+    # Inputs: meals (list[Meal]), profile (UserProfile), targets (NutritionTargets),
+    # top_n (how many top-scored meals to return). Returns sorted ScoredMeals.
     scored = [score_meal(m, profile, targets) for m in meals]
     scored.sort(key=lambda s: s.score, reverse=True)
     return scored[:top_n]

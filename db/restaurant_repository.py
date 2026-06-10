@@ -5,11 +5,16 @@ from db.schema import restaurants_table as R, restaurant_branches_table as B
 
 
 class RestaurantRepository:
+    # Searches restaurants and groups their branches.
     def __init__(self, engine):
+        # Input: engine (SQLAlchemy engine).
         self._engine = engine
 
     def search(self, query: str = None, city: str = None,
                only_active: bool = True, limit: int = 20) -> list:
+        # Inputs: query (brand/description ilike), city (branch city ilike),
+        # only_active (keep active/unknown branches), limit (max rows, default 20).
+        # Returns restaurants, each with a nested branches list.
         stmt = select(
             R.c.Id,
             R.c.BrandName,

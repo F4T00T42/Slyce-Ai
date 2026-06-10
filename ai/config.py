@@ -1,6 +1,6 @@
 """Central configuration loaded from environment variables.
 
-Secrets are NEVER hard-coded. Copy `.env.example` to `.env` and fill values.
+Secrets are never hard-coded; copy .env.example to .env and fill values.
 """
 import os
 from dataclasses import dataclass, field
@@ -49,21 +49,18 @@ class Settings:
     # --- Web search (Tavily) ---
     tavily_api_key: str = field(default_factory=lambda: os.getenv("TAVILY_API_KEY", ""))
 
-    # --- Conversation sessions ---
-    # Backend for storing chat history. "sqlite" (durable, default) or "postgres"
-    # via SESSION_DB_URL, or "memory" (ephemeral, dev only). This is a SEPARATE
-    # datastore; the main application DB is never written to.
+    # --- Conversation sessions (separate datastore; app DB never written) ---
+    # Backend: "sqlite" (durable, default), "postgres" (via session_db_url), or
+    # "memory" (ephemeral, dev only).
     session_backend: str = field(
         default_factory=lambda: os.getenv("SESSION_BACKEND", "sqlite")
     )
-    # SQLAlchemy URL for the durable session store. Examples:
-    #   sqlite:///./chat_sessions.db
-    #   postgresql+psycopg2://user:pass@host:5432/ai_chat
+    # SQLAlchemy URL for the durable session store (sqlite:/// or postgresql+psycopg2://).
     session_db_url: str = field(
         default_factory=lambda: os.getenv("SESSION_DB_URL", "sqlite:///./chat_sessions.db")
     )
-    # How many recent turns are fed to the LLM as context. The FULL transcript is
-    # always retained regardless of this value; this only bounds prompt size.
+    # Recent turns fed to the LLM. The full transcript is always retained; this
+    # only bounds prompt size.
     context_turns: int = field(
         default_factory=lambda: int(os.getenv("CONTEXT_TURNS", "20"))
     )

@@ -1,9 +1,7 @@
 """Idempotently ensure the nutrition knowledge base is ingested into Qdrant.
 
-Safe to run on every startup (e.g. from the Docker entrypoint): it checks
-whether the target collection already contains points and only ingests when it
-is missing or empty. This avoids duplicating chunks, since `VectorStore.upsert`
-assigns a fresh id to every point on each run.
+Safe to run on every startup: it ingests only when the target collection is
+missing or empty, avoiding duplicate chunks. Set FORCE_INGEST=true to override.
 
 Usage:
     python -m ai.rag.bootstrap_kb            # auto-skip if already populated
@@ -16,8 +14,7 @@ from ai.rag.ingest import ingest
 
 
 def _collection_count(store: VectorStore):
-    """Return the number of points in the collection, or None if it doesn't
-    exist yet / can't be reached."""
+    # Input: store (VectorStore). Returns point count, or None if unreachable.
     try:
         client = store._ensure_client()
         return client.count(collection_name=store.collection, exact=True).count
@@ -26,6 +23,8 @@ def _collection_count(store: VectorStore):
 
 
 def main() -> None:
+    # Ingest knowledge base docs unless the collection is already populated.
+    # Env: KB_DOCS_DIR (docs path), FORCE_INGEST (ingest even if populated).
     docs_dir = os.getenv("KB_DOCS_DIR", "knowledge_base/docs")
     force = os.getenv("FORCE_INGEST", "false").strip().lower() == "true"
     store = VectorStore()

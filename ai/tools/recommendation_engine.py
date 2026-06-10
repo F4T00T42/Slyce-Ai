@@ -10,16 +10,23 @@ SCHEMA = {
         "name": "recommendation_engine",
         "description": (
             "Recommend the best-matching meals from the app's catalog for a "
-            "user's nutrition profile and goal. Use for 'what should I eat', "
-            "'recommend meals', goal-based suggestions. Requires weight, height "
-            "and age (from the stored profile or provided explicitly)."
+            "user. Use for 'what should I eat', 'recommend meals', goal-based "
+            "suggestions. DEFAULT PATH: pass `user_id` and the system loads that "
+            "user's stored, already-translated profile (targets, diet, "
+            "allergies) — do NOT ask the user to re-enter stats they've already "
+            "saved. Only pass `profile` to OVERRIDE when the user explicitly "
+            "states different stats (e.g. for a friend or a hypothetical)."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "profile": PROFILE_ARG_SCHEMA,
-                "user_id": {"type": "string"},
+                "user_id": {
+                    "type": "string",
+                    "description": "Preferred input. The system loads this "
+                    "user's stored, translated profile; no manual stats needed.",
+                },
                 "top_n": {"type": "integer", "default": 5},
+                "profile": PROFILE_ARG_SCHEMA,
             },
         },
     },
@@ -27,6 +34,8 @@ SCHEMA = {
 
 
 def run(args: dict, ctx) -> dict:
+    # Inputs: args (user_id?, top_n?, profile?), ctx (ToolContext).
+    # Resolves the profile then returns ranked catalog recommendations.
     profile, missing = get_profile(args, ctx)
     if profile is None:
         return {
@@ -37,7 +46,7 @@ def run(args: dict, ctx) -> dict:
     top_n = int(args.get("top_n", 5))
     result = ctx.recommender.recommend(profile, top_n=top_n)
     payload = result.to_dict()
-    # Trim verbose breakdowns for the LLM.
+    # Drop verbose scoring breakdowns before returning to the LLM.
     for m in payload["ranked_meals"]:
         m.pop("breakdown", None)
     return {

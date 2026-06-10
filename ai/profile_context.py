@@ -1,32 +1,40 @@
-"""Resolve a UserProfile from the request, supporting three sources:
+"""Resolve a UserProfile from a request.
 
-1. Explicit `profile` fields supplied by the backend or described by the user
-   (e.g. a friend's stats).
-2. A `user_id` -> fetch the stored profile from customers.Customers.
-3. A merge of (2) overridden by (1).
-
-The app DB has no fitness `goal`; it defaults to "maintenance" unless supplied.
-Stored diet preferences (Keto, High Protein, ...) are mapped to the
-recommender's coarse `diet` enum.
+Sources, merged in this order: (1) a stored profile loaded by user_id, then
+(2) explicit fields from the backend or user (a friend's stats) override it.
+The app DB has no fitness goal; it defaults to "maintenance" unless supplied.
 """
 from models import UserProfile
 
-# Map stored FoodPreferences names to the recommender's diet enum.
+# Stored/selected FoodPreference name -> canonical diet enum. Only macro-
+# enforceable plans constrain results; ingredient-based plans (vegetarian/vegan/
+# pescatarian/gluten free/dairy free) are accepted but map to "balanced".
 DIET_PREFERENCE_MAP = {
     "keto": "keto",
-    "low carb": "keto",
+    "low carb": "low_carb",
     "high protein": "high_protein",
+    "mediterranean": "mediterranean",
+    "vegetarian": "balanced",
+    "vegan": "balanced",
+    "pescatarian": "balanced",
+    "gluten free": "balanced",
+    "dairy free": "balanced",
 }
 
 
 def _coarse_diet(diet_preferences: list[str], explicit: str | None) -> str:
+    # Inputs: diet_preferences (selected/stored plan names), explicit (caller diet).
+    # Returns explicit if given, else the first macro-enforceable plan, else "balanced".
     if explicit:
         return explicit
+    fallback = "balanced"
     for pref in diet_preferences or []:
-        key = pref.strip().lower()
-        if key in DIET_PREFERENCE_MAP:
-            return DIET_PREFERENCE_MAP[key]
-    return "balanced"
+        mapped = DIET_PREFERENCE_MAP.get(pref.strip().lower())
+        if mapped and mapped != "balanced":
+            return mapped
+        if mapped:
+            fallback = mapped
+    return fallback
 
 
 def resolve_profile(
@@ -34,11 +42,9 @@ def resolve_profile(
     user_id: str | None,
     customer_repo=None,
 ) -> tuple[UserProfile | None, list[str]]:
-    """Return (profile_or_None, missing_required_fields).
-
-    If required numeric fields are missing, returns (None, [missing...]) so the
-    caller / LLM can ask a follow-up question.
-    """
+    # Inputs: explicit (per-request profile fields or None), user_id (stored
+    # profile lookup key or None), customer_repo (CustomerRepository or None).
+    # Returns (UserProfile, []) or (None, [missing required fields]).
     data: dict = {}
     diet_preferences: list[str] = []
 
@@ -61,7 +67,7 @@ def resolve_profile(
         height=float(data["height"]),
         age=int(data["age"]),
         gender=data.get("gender", "male"),
-        activity_level=data.get("activity_level", "moderate"),
+        activity_level=data.get("activity_level", "moderately_active"),
         goal=data.get("goal", "maintenance"),
         diet=_coarse_diet(diet_preferences, data.get("diet")),
         allergies=data.get("allergies", []) or [],
