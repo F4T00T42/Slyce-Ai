@@ -27,6 +27,15 @@ class ChatRequest(BaseModel):
     profile: Optional[ProfileInput] = None
 
 
+class RecommendRequest(BaseModel):
+    # Body for POST /recommend. Fields: user_id? (preferred — loads the stored
+    # profile), profile? (manual override for a friend/hypothetical), top_n (max
+    # meals, default 10). Provide user_id and/or profile; profile overrides stored.
+    user_id: Optional[str] = None
+    profile: Optional[ProfileInput] = None
+    top_n: int = 10
+
+
 class ChatResponse(BaseModel):
     # Fields: reply, used_tools, citations, session_id.
     reply: str
