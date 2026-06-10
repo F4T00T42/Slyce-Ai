@@ -4,7 +4,7 @@ Builds on the recommender's ranking. For each day it fills meals_per_day slots
 with distinct, allergen-safe, diet-compatible meals closest to the per-meal
 calorie/protein targets, rotating the ranked pool to vary meals across days.
 """
-from ai.tools._profile import get_profile, PROFILE_ARG_SCHEMA
+from ai.tools._profile import get_profile, need_profile_response, PROFILE_ARG_SCHEMA
 from nutrition import compute_targets
 from filters import filter_meals
 from scorer import rank_meals
@@ -43,7 +43,7 @@ def run(args: dict, ctx) -> dict:
     # Inputs: args (user_id?, days?=3, meals_per_day?=3, profile?), ctx (ToolContext).
     profile, missing = get_profile(args, ctx)
     if profile is None:
-        return {"status": "need_profile", "missing_fields": missing}
+        return need_profile_response(missing)
 
     days = max(1, min(int(args.get("days", 3)), 14))
     meals_per_day = max(1, min(int(args.get("meals_per_day", 3)), 6))

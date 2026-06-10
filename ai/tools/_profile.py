@@ -13,6 +13,33 @@ def get_profile(args: dict, ctx):
     return resolve_profile(explicit, user_id, ctx.customer_repo)
 
 
+# Human-friendly labels for the required fields when asking the user.
+_FIELD_LABELS = {"weight": "weight (kg)", "height": "height (cm)", "age": "age"}
+
+
+def need_profile_response(missing: list) -> dict:
+    # Input: missing (list of required field names not on file).
+    # Returns a standard 'need_profile' tool result whose message tells the model
+    # to ask the user for the missing MEASUREMENTS — never for a user_id/account id
+    # (the backend supplies that automatically).
+    labels = [_FIELD_LABELS.get(f, f) for f in missing] or [
+        "weight (kg)",
+        "height (cm)",
+        "age",
+    ]
+    human = ", ".join(labels)
+    return {
+        "status": "need_profile",
+        "missing_fields": missing,
+        "message": (
+            "This user's saved profile is missing " + human + ", which are "
+            "required to calculate nutrition targets. Ask the user to share their "
+            + human + ". Do NOT ask for a user_id or any account id — the app "
+            "provides that automatically."
+        ),
+    }
+
+
 # Reusable JSON schema for an explicit profile argument on profile-aware tools.
 PROFILE_ARG_SCHEMA = {
     "type": "object",

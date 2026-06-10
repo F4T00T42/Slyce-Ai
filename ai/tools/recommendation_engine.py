@@ -3,7 +3,7 @@
 Reuses the existing MealRecommender (nutrition targets + filters + scorer).
 Diet is a ranking preference, not a hard cut, so this always returns meals.
 """
-from ai.tools._profile import get_profile, PROFILE_ARG_SCHEMA
+from ai.tools._profile import get_profile, need_profile_response, PROFILE_ARG_SCHEMA
 
 SCHEMA = {
     "type": "function",
@@ -39,11 +39,7 @@ def run(args: dict, ctx) -> dict:
     # Resolves the profile then returns ranked catalog recommendations.
     profile, missing = get_profile(args, ctx)
     if profile is None:
-        return {
-            "status": "need_profile",
-            "missing_fields": missing,
-            "message": "Need " + ", ".join(missing) + " to compute recommendations.",
-        }
+        return need_profile_response(missing)
     top_n = int(args.get("top_n", 10))
     result = ctx.recommender.recommend(profile, top_n=top_n)
     payload = result.to_dict()
