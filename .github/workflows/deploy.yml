@@ -3,7 +3,7 @@ name: Build and deploy SLYCE-AI to Azure
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 jobs:
