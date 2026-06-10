@@ -9,7 +9,7 @@ Endpoints:
   GET    /chat/history/{session_id} -> full transcript for display
   DELETE /chat/history/{session_id} -> clear a conversation
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 
 from ai.config import settings
 from ai.api.schemas import (
@@ -97,7 +97,16 @@ def chat(req: ChatRequest, state: dict = Depends(_get_state)) -> ChatResponse:
 
     # Feed only the recent window to the LLM; the full transcript is retained.
     history = state["sessions"].get_context(req.session_id, settings.context_turns)
-    result = state["orchestrator"].handle(req.message, ctx, history=history)
+    try:
+        result = state["orchestrator"].handle(req.message, ctx, history=history)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "assistant_unavailable",
+                "message": "The assistant is temporarily unavailable. Please retry.",
+            },
+    )
 
     state["sessions"].append(
         req.session_id,
