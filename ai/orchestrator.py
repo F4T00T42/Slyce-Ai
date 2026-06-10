@@ -3,12 +3,22 @@
 The LLM picks tool(s); we execute them, feed results back, and repeat until it
 produces a final answer or hits the iteration cap. Information priority
 (DB > KB > web) is enforced via the system prompt and tool descriptions.
+
+Reply robustness: a model turn occasionally comes back with no tool calls AND
+empty content. To avoid the user seeing a blank reply, we force one more
+completion and, failing that, return a safe fallback message.
 """
 import json
 
 from ai.config import settings
 from ai.prompts import SYSTEM_PROMPT, TOOL_ROUTING_HINT
 from ai.tools import TOOL_SCHEMAS, execute, ToolContext
+
+# Shown only if the model returns nothing usable even after a forced retry.
+_FALLBACK_REPLY = (
+    "Sorry, I couldn't put together a response just now. Could you rephrase or "
+    "try again?"
+)
 
 
 class Orchestrator:
@@ -19,10 +29,16 @@ class Orchestrator:
         self._llm = llm
         self._build_context = build_context
 
+    def _final_text(self, messages: list) -> str:
+        # Input: messages (current conversation). Forces a tool-free completion
+        # and returns its text (may be empty).
+        response = self._llm.chat(messages, tools=None)
+        return (response.choices[0].message.content or "").strip()
+
     def handle(self, message: str, ctx: ToolContext, history: list | None = None) -> dict:
         # Inputs: message (user text), ctx (ToolContext with repos/profile),
         # history (prior [{role, content}] turns for context).
-        # Returns {reply, used_tools, citations}.
+        # Returns {reply, used_tools, citations}; reply is never empty.
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT + "\n\n" + TOOL_ROUTING_HINT}
         ]
@@ -53,10 +69,14 @@ class Orchestrator:
                 ]
             messages.append(assistant_msg)
 
-            # No tool calls -> the model produced a final answer.
+            # No tool calls -> the model intends a final answer.
             if not tool_calls:
+                reply = (choice.content or "").strip()
+                if not reply:
+                    # Empty final turn: force one more completion before giving up.
+                    reply = self._final_text(messages)
                 return {
-                    "reply": choice.content or "",
+                    "reply": reply or _FALLBACK_REPLY,
                     "used_tools": used_tools,
                     "citations": ctx.citations,
                 }
@@ -80,9 +100,9 @@ class Orchestrator:
                 )
 
         # Iteration cap hit: force a final textual answer with tools disabled.
-        response = self._llm.chat(messages, tools=None)
+        reply = self._final_text(messages)
         return {
-            "reply": response.choices[0].message.content or "",
+            "reply": reply or _FALLBACK_REPLY,
             "used_tools": used_tools,
             "citations": ctx.citations,
         }

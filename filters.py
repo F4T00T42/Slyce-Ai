@@ -84,10 +84,12 @@ DIET_FILTERS = {
 }
 
 
-def filter_meals(meals: list[Meal], profile: UserProfile) -> list[Meal]:
-    # Inputs: meals (list[Meal]), profile (UserProfile).
-    # Drops meals failing the allergen check or the profile's diet gate.
-    diet_fn = DIET_FILTERS.get(profile.diet)
+def filter_meals(meals: list[Meal], profile: UserProfile, apply_diet: bool = True) -> list[Meal]:
+    # Inputs: meals (list[Meal]), profile (UserProfile), apply_diet (when False,
+    # only the allergen safety gate runs — used by the recommender so the home
+    # page is never empty; diet then influences ranking instead of excluding).
+    # Drops meals failing the allergen check, and (when apply_diet) the diet gate.
+    diet_fn = DIET_FILTERS.get(profile.diet) if apply_diet else None
     filtered = []
     for meal in meals:
         if not passes_allergen_check(meal, profile.allergies):

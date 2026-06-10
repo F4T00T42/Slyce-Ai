@@ -1,6 +1,7 @@
 """Tool: personalized meal recommendations from the app catalog.
 
 Reuses the existing MealRecommender (nutrition targets + filters + scorer).
+Diet is a ranking preference, not a hard cut, so this always returns meals.
 """
 from ai.tools._profile import get_profile, PROFILE_ARG_SCHEMA
 
@@ -25,7 +26,7 @@ SCHEMA = {
                     "description": "Preferred input. The system loads this "
                     "user's stored, translated profile; no manual stats needed.",
                 },
-                "top_n": {"type": "integer", "default": 5},
+                "top_n": {"type": "integer", "default": 10},
                 "profile": PROFILE_ARG_SCHEMA,
             },
         },
@@ -34,7 +35,7 @@ SCHEMA = {
 
 
 def run(args: dict, ctx) -> dict:
-    # Inputs: args (user_id?, top_n?, profile?), ctx (ToolContext).
+    # Inputs: args (user_id?, top_n?=10, profile?), ctx (ToolContext).
     # Resolves the profile then returns ranked catalog recommendations.
     profile, missing = get_profile(args, ctx)
     if profile is None:
@@ -43,7 +44,7 @@ def run(args: dict, ctx) -> dict:
             "missing_fields": missing,
             "message": "Need " + ", ".join(missing) + " to compute recommendations.",
         }
-    top_n = int(args.get("top_n", 5))
+    top_n = int(args.get("top_n", 10))
     result = ctx.recommender.recommend(profile, top_n=top_n)
     payload = result.to_dict()
     # Drop verbose scoring breakdowns before returning to the LLM.
@@ -54,5 +55,7 @@ def run(args: dict, ctx) -> dict:
         "targets": payload["user_targets"],
         "meals_considered": payload["meals_considered"],
         "meals_after_filter": payload["meals_after_filter"],
+        "diet_enforced": payload["diet_enforced"],
+        "note": payload["note"],
         "recommendations": payload["ranked_meals"],
     }
