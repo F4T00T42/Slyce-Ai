@@ -74,7 +74,12 @@ def chat(req: ChatRequest, state: dict = Depends(_get_state)) -> ChatResponse:
     # Inputs: req (ChatRequest: message, session_id?, user_id?, profile?),
     # state (shared resources). Resolves profile, runs orchestrator, persists turn.
     explicit = req.profile.model_dump(exclude_none=True) if req.profile else None
-    profile, _missing = resolve_profile(explicit, req.user_id, state["customer_repo"])
+    try:
+        profile, _missing = resolve_profile(explicit, req.user_id, state["customer_repo"])
+    except Exception:
+        # Don't fail the whole chat on a transient profile-load error: continue
+        # without a stored profile so the assistant can still answer or ask for stats.
+        profile = None
 
     ctx = ToolContext(
         engine=state["engine"],

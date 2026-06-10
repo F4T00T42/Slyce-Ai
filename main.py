@@ -85,7 +85,18 @@ def recommend(req: RecommendRequest):
     # Loads the stored profile by user_id (preferred); an explicit profile, if
     # given, overrides stored fields. Returns 422 if required fields are missing.
     explicit = req.profile.model_dump(exclude_none=True) if req.profile else None
-    profile, missing = resolve_profile(explicit, req.user_id, _resources.get("customer_repo"))
+    try:
+        profile, missing = resolve_profile(explicit, req.user_id, _resources.get("customer_repo"))
+    except Exception:
+        # DB/profile lookup failed (e.g. transient pooler error). Surface a clear
+        # 503 the client can retry — never a raw 500.
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "profile_unavailable",
+                "message": "Could not load the profile right now. Please retry.",
+            },
+        )
     if profile is None:
         raise HTTPException(
             status_code=422,
