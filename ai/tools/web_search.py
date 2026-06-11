@@ -22,7 +22,7 @@ SCHEMA = {
             "type": "object",
             "properties": {
                 "query": {"type": "string"},
-                "max_results": {"type": "integer", "default": 5},
+                "max_results": {"type": ["integer", "string"], "default": 5},
                 "user_requested": {
                     "type": "boolean",
                     "description": "Must be true. Set ONLY when the user "
@@ -69,7 +69,7 @@ def run(args: dict, ctx) -> dict:
     client = _client(ctx)
     resp = client.search(
         query=query,
-        max_results=int(args.get("max_results", 5)),
+        max_results=args.get("max_results", 5),
         search_depth="basic",
     )
     results = []

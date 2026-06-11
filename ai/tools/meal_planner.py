@@ -25,8 +25,8 @@ SCHEMA = {
         "parameters": {
             "type": "object",
             "properties": {
-                "days": {"type": "integer", "default": 3, "minimum": 1, "maximum": 14},
-                "meals_per_day": {"type": "integer", "default": 3, "minimum": 1, "maximum": 6},
+                "days": {"type": ["integer", "string"], "default": 3, "minimum": 1, "maximum": 14},
+                "meals_per_day": {"type": ["integer", "string"], "default": 3, "minimum": 1, "maximum": 6},
                 "profile": PROFILE_ARG_SCHEMA,
             },
         },
@@ -40,8 +40,8 @@ def run(args: dict, ctx) -> dict:
     if profile is None:
         return need_profile_response(missing)
 
-    days = max(1, min(int(args.get("days", 3)), 14))
-    meals_per_day = max(1, min(int(args.get("meals_per_day", 3)), 6))
+    days = max(1, min(args.get("days", 3), 14))
+    meals_per_day = max(1, min(args.get("meals_per_day", 3), 6))
 
     targets = compute_targets(profile, meals_per_day)
     all_meals = ctx.meal_repo.get_all(only_available=True, with_allergens=True)

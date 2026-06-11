@@ -21,7 +21,7 @@ SCHEMA = {
         "parameters": {
             "type": "object",
             "properties": {
-                "top_n": {"type": "integer", "default": 10},
+                "top_n": {"type": ["integer", "string"], "default": 10},
                 "profile": PROFILE_ARG_SCHEMA,
             },
         },
@@ -35,7 +35,7 @@ def run(args: dict, ctx) -> dict:
     profile, missing = get_profile(args, ctx)
     if profile is None:
         return need_profile_response(missing)
-    top_n = int(args.get("top_n", 10))
+    top_n = args.get("top_n", 10)
     result = ctx.recommender.recommend(profile, top_n=top_n)
     payload = result.to_dict()
     # Drop verbose scoring breakdowns before returning to the LLM.

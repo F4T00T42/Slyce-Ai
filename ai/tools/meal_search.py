@@ -22,13 +22,13 @@ SCHEMA = {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Meal name or keywords"},
-                "max_calories": {"type": "number"},
-                "min_protein": {"type": "number"},
+                "max_calories": {"type": ["number", "string"]},
+                "min_protein": {"type": ["number", "string"]},
                 "meal_id": {
                     "type": "string",
                     "description": "MealSizes.Id to analyze in detail (ingredients + macros).",
                 },
-                "limit": {"type": "integer", "default": 10},
+                "limit": {"type": ["integer", "string"], "default": 10},
             },
         },
     },
@@ -97,7 +97,7 @@ def run(args: dict, ctx) -> dict:
             query=query,
             max_calories=args.get("max_calories"),
             min_protein=args.get("min_protein"),
-            limit=int(args.get("limit", 10)),
+            limit=args.get("limit", 10),
         )
         match = _best_name_match(meals, query)
         if match is not None:
@@ -120,6 +120,6 @@ def run(args: dict, ctx) -> dict:
         query=None,
         max_calories=args.get("max_calories"),
         min_protein=args.get("min_protein"),
-        limit=int(args.get("limit", 10)),
+        limit=args.get("limit", 10),
     )
     return {"status": "ok", "count": len(meals), "results": [_meal_brief(m) for m in meals]}

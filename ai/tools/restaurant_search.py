@@ -13,7 +13,7 @@ SCHEMA = {
             "properties": {
                 "query": {"type": "string"},
                 "city": {"type": "string"},
-                "limit": {"type": "integer", "default": 10},
+                "limit": {"type": ["integer", "string"], "default": 10},
             },
         },
     },
@@ -25,6 +25,6 @@ def run(args: dict, ctx) -> dict:
     results = ctx.restaurant_repo.search(
         query=args.get("query"),
         city=args.get("city"),
-        limit=int(args.get("limit", 10)),
+        limit=args.get("limit", 10),
     )
     return {"status": "ok", "count": len(results), "restaurants": results}

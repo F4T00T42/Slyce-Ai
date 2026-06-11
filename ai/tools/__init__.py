@@ -49,15 +49,66 @@ class ToolContext:
 
 TOOL_SCHEMAS: list[dict] = [m.SCHEMA for m in _MODULES]
 TOOL_FUNCTIONS: dict[str, Callable] = {m.SCHEMA["function"]["name"]: m.run for m in _MODULES}
+_SCHEMAS_BY_NAME: dict[str, dict] = {m.SCHEMA["function"]["name"]: m.SCHEMA for m in _MODULES}
+
+
+def _coerce_scalar(value: Any, prop_schema: dict) -> Any:
+    # Groq/Llama tool calls frequently emit numbers (and booleans) as JSON
+    # strings, e.g. {"limit": "10"}. Convert such strings to the schema-declared
+    # type so tools and the DB receive real numbers. Unparseable values are left
+    # as-is (the tool will surface a clean error). Recurses into nested objects.
+    if not isinstance(prop_schema, dict):
+        return value
+    types = prop_schema.get("type")
+    types = types if isinstance(types, list) else [types]
+    if isinstance(value, str):
+        s = value.strip()
+        if s == "":
+            return value
+        if "integer" in types:
+            try:
+                return int(float(s))
+            except (TypeError, ValueError):
+                return value
+        if "number" in types:
+            try:
+                return float(s)
+            except (TypeError, ValueError):
+                return value
+        if "boolean" in types:
+            low = s.lower()
+            if low in ("true", "false"):
+                return low == "true"
+    if "object" in types and isinstance(value, dict):
+        return _coerce_args(value, prop_schema.get("properties") or {})
+    return value
+
+
+def _coerce_args(args: dict, properties: dict) -> dict:
+    # Coerce each known property of `args` to its declared schema type (recursing
+    # into nested object schemas such as `profile`). Unknown keys pass through.
+    if not isinstance(args, dict) or not properties:
+        return args
+    return {
+        key: (_coerce_scalar(val, properties[key]) if key in properties else val)
+        for key, val in args.items()
+    }
 
 
 def execute(name: str, args: dict, ctx: ToolContext) -> dict:
     # Inputs: name (tool name), args (tool arguments), ctx (ToolContext).
-    # Dispatches to the tool; returns {error} for unknown tools or exceptions.
+    # Coerces string-encoded numbers/booleans to their declared types, then
+    # dispatches to the tool; returns {error} for unknown tools or exceptions.
     fn = TOOL_FUNCTIONS.get(name)
     if fn is None:
         return {"error": f"Unknown tool: {name}"}
+    properties = (
+        _SCHEMAS_BY_NAME.get(name, {})
+        .get("function", {})
+        .get("parameters", {})
+        .get("properties", {})
+    )
     try:
-        return fn(args or {}, ctx)
+        return fn(_coerce_args(args or {}, properties), ctx)
     except Exception as exc:  # surface a clean error to the LLM
         return {"error": f"{type(exc).__name__}: {exc}"}

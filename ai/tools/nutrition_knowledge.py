@@ -15,7 +15,7 @@ SCHEMA = {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "The nutrition question."},
-                "top_k": {"type": "integer", "default": 5},
+                "top_k": {"type": ["integer", "string"], "default": 5},
             },
             "required": ["query"],
         },
@@ -31,7 +31,7 @@ def run(args: dict, ctx) -> dict:
         return {"status": "error", "message": "query is required"}
     if ctx.retriever is None:
         return {"status": "unavailable", "message": "Knowledge base is not configured."}
-    hits = ctx.retriever.search(query, top_k=int(args.get("top_k", 5)))
+    hits = ctx.retriever.search(query, top_k=args.get("top_k", 5))
     for h in hits:
         src = h.get("source") or h.get("title")
         if src and src not in ctx.citations:
