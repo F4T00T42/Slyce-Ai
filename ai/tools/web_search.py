@@ -22,7 +22,10 @@ SCHEMA = {
             "type": "object",
             "properties": {
                 "query": {"type": "string"},
-                "max_results": {"type": ["integer", "string"], "default": 5},
+                "max_results": {
+                    "type": "string",
+                    "description": "Number of web results to return (default 5).",
+                },
                 "user_requested": {
                     "type": "boolean",
                     "description": "Must be true. Set ONLY when the user "
@@ -64,10 +67,12 @@ def run(args: dict, ctx) -> dict:
     query = args.get("query", "").strip()
     if not query:
         return {"status": "error", "message": "query is required"}
+    from ai.tools import coerce_int
+
     client = _client(ctx)
     resp = client.search(
         query=query,
-        max_results=args.get("max_results", 5),
+        max_results=coerce_int(args.get("max_results"), 5),
         search_depth="basic",
     )
     results = []

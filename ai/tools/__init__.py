@@ -62,6 +62,17 @@ def coerce_int(value: Any, default: int) -> int:
     except (TypeError, ValueError):
         return default
 
+def coerce_float(value: Any, default=None):
+    # Best-effort float coercion for tool args (LLMs sometimes pass numbers as
+    # strings). Falls back to default on None/invalid input. `default` may be
+    # None to mean "no value / no filter".
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
 def _coerce_scalar(value: Any, prop_schema: dict) -> Any:
     # Groq/Llama tool calls frequently emit numbers (and booleans) as JSON
     # strings, e.g. {"limit": "10"}. Convert such strings to the schema-declared

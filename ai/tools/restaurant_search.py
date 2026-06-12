@@ -13,7 +13,10 @@ SCHEMA = {
             "properties": {
                 "query": {"type": "string"},
                 "city": {"type": "string"},
-                "limit": {"type": ["integer", "string"], "default": 10},
+                "limit": {
+                    "type": "string",
+                    "description": "Max number of results to return (default 10).",
+                },
             },
         },
     },
@@ -21,9 +24,11 @@ SCHEMA = {
 
 def run(args: dict, ctx) -> dict:
     # Inputs: args (query?, city?, limit?=10), ctx (ToolContext).
+    from ai.tools import coerce_int
+
     results = ctx.restaurant_repo.search(
         query=args.get("query"),
         city=args.get("city"),
-        limit=args.get("limit", 10),
+        limit=coerce_int(args.get("limit"), 10),
     )
     return {"status": "ok", "count": len(results), "restaurants": results}

@@ -7,7 +7,7 @@ python-dotenv>=1.0
 pydantic>=2.6
 
 # --- AI / chatbot layer ---
-groq>=0.11 # Groq LLM (OpenAI-compatible, tool calling)
+openai>=1.40 # OpenAI-compatible LLM client (Gemini / Groq / Cerebras / GitHub Models / OpenRouter / ...)
 sentence-transformers>=3.0 # BGE embeddings (BAAI/bge-base-en-v1.5)
 qdrant-client>=1.10 # vector store for the nutrition knowledge base
 tavily-python>=0.5 # web-search fallback provider

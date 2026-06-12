@@ -20,7 +20,7 @@ The assistant does **not** replace the recommender — it wraps and extends it.
 ## Architecture
 
 ```
-User  ->  /chat  ->  Orchestrator  ->  LLM (Groq, tool calling)
+User  ->  /chat  ->  Orchestrator  ->  LLM (OpenAI-compatible: Gemini/Groq/...)
                           |
                           v  tool selection + execution
         +------------------+--------------------------------+
@@ -93,7 +93,7 @@ DELETE /chat/history/{session_id} # clear a conversation (e.g. "New chat")
 Brings up the API plus a bundled Qdrant (knowledge base) and Postgres (sessions):
 
 ```bash
-cp .env.example .env          # fill GROQ_API_KEY, HF_TOKEN, TAVILY_API_KEY, DB_* (Supabase)
+cp .env.example .env          # fill LLM_API_KEY (Gemini), HF_TOKEN, TAVILY_API_KEY, DB_* (Supabase)
 docker compose up --build
 ```
 
@@ -143,11 +143,41 @@ uvicorn main:app --reload
 
 ## Models
 
-- LLM: Groq free hosted inference — `llama-3.3-70b-versatile` (primary),
-  `llama-3.1-8b-instant` (fast). Both support tool calling.
+- LLM: any **OpenAI-compatible** chat-completions endpoint, selected purely via
+  env vars (no code change to switch provider/model). Defaults to **Google
+  Gemini** (`gemini-2.0-flash`). See "LLM provider configuration" below.
 - Embeddings: `BAAI/bge-base-en-v1.5` (English; Arabic not supported yet).
 - Vector DB: Qdrant (separate datastore; the main app DB is never written to).
 - Web search: Tavily.
+
+### LLM provider configuration
+
+The LLM is reached through the `openai` SDK pointed at any OpenAI-compatible
+endpoint, so switching provider/model is configuration only:
+
+| Env var                | Default                                                    | Purpose                                |
+| ---------------------- | ---------------------------------------------------------- | -------------------------------------- |
+| `LLM_API_KEY`          | falls back to `GEMINI_API_KEY`, then `GROQ_API_KEY`        | Provider API key                       |
+| `LLM_BASE_URL`         | `https://generativelanguage.googleapis.com/v1beta/openai/` | OpenAI-compatible base URL             |
+| `LLM_MODEL`            | `gemini-2.0-flash`                                         | Model name                             |
+| `LLM_TEMPERATURE`      | `0.2`                                                      | Sampling temperature                   |
+| `LLM_MAX_RETRIES`      | `3`                                                        | Retries on transient errors (429/5xx)  |
+| `LLM_RETRY_BASE_DELAY` | `0.5`                                                      | Base seconds for exponential backoff   |
+
+**Default (Gemini):** get a free key from Google AI Studio
+(https://aistudio.google.com/app/apikey) and set `LLM_API_KEY` (or
+`GEMINI_API_KEY`). Nothing else is required.
+
+**Switch back to Groq** — set these env vars:
+
+```bash
+LLM_BASE_URL=https://api.groq.com/openai/v1
+LLM_MODEL=llama-3.3-70b-versatile   # or llama-3.1-8b-instant
+LLM_API_KEY=<your groq key>         # GROQ_API_KEY is also accepted
+```
+
+Any other OpenAI-compatible provider (Cerebras, GitHub Models, OpenRouter, a
+local server, ...) works the same way — just set the three `LLM_*` values.
 
 ## Secrets
 

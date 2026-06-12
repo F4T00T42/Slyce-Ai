@@ -22,13 +22,22 @@ SCHEMA = {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Meal name or keywords"},
-                "max_calories": {"type": ["number", "string"]},
-                "min_protein": {"type": ["number", "string"]},
+                "max_calories": {
+                    "type": "string",
+                    "description": "Optional max calories filter, e.g. \"500\".",
+                },
+                "min_protein": {
+                    "type": "string",
+                    "description": "Optional min protein in grams, e.g. \"30\".",
+                },
                 "meal_id": {
                     "type": "string",
                     "description": "MealSizes.Id to analyze in detail (ingredients + macros).",
                 },
-                "limit": {"type": ["integer", "string"], "default": 10},
+                "limit": {
+                    "type": "string",
+                    "description": "Max number of results to return (default 10).",
+                },
             },
         },
     },
@@ -84,6 +93,13 @@ def _analyze(meal, ctx) -> dict:
 def run(args: dict, ctx) -> dict:
     # Inputs: args (query?, meal_id?, max_calories?, min_protein?, limit?=10),
     # ctx (ToolContext). Routes to analyze-by-name, analyze-by-id, or plain search.
+    from ai.tools import coerce_int, coerce_float
+
+    # Numeric args may arrive as strings (the schema declares them as strings
+    # for cross-provider compatibility), so coerce them explicitly here.
+    max_calories = coerce_float(args.get("max_calories"), None)
+    min_protein = coerce_float(args.get("min_protein"), None)
+    limit = coerce_int(args.get("limit"), 10)
     meal_id = args.get("meal_id")
     query = (args.get("query") or "").strip()
 
@@ -91,9 +107,9 @@ def run(args: dict, ctx) -> dict:
     if not meal_id and query:
         meals = ctx.meal_repo.search(
             query=query,
-            max_calories=args.get("max_calories"),
-            min_protein=args.get("min_protein"),
-            limit=args.get("limit", 10),
+            max_calories=max_calories,
+            min_protein=min_protein,
+            limit=limit,
         )
         match = _best_name_match(meals, query)
         if match is not None:
@@ -114,8 +130,8 @@ def run(args: dict, ctx) -> dict:
     # No id and no query: plain catalog search (macro filters only).
     meals = ctx.meal_repo.search(
         query=None,
-        max_calories=args.get("max_calories"),
-        min_protein=args.get("min_protein"),
-        limit=args.get("limit", 10),
+        max_calories=max_calories,
+        min_protein=min_protein,
+        limit=limit,
     )
     return {"status": "ok", "count": len(meals), "results": [_meal_brief(m) for m in meals]}

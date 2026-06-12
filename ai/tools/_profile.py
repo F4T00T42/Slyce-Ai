@@ -43,9 +43,9 @@ PROFILE_ARG_SCHEMA = {
     "description": "Explicit profile fields. Provide when the user describes "
     "stats directly (e.g. their own or a friend's).",
     "properties": {
-        "weight": {"type": ["number", "string"], "description": "kg"},
-        "height": {"type": ["number", "string"], "description": "cm"},
-        "age": {"type": ["integer", "string"]},
+        "weight": {"type": "string", "description": "Body weight in kg, e.g. \"70\"."},
+        "height": {"type": "string", "description": "Height in cm, e.g. \"175\"."},
+        "age": {"type": "string", "description": "Age in years, e.g. \"30\"."},
         "gender": {"type": "string", "enum": ["male", "female"]},
         "activity_level": {
             "type": "string",

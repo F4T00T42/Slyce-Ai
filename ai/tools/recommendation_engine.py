@@ -21,7 +21,10 @@ SCHEMA = {
         "parameters": {
             "type": "object",
             "properties": {
-                "top_n": {"type": ["integer", "string"], "default": 10},
+                "top_n": {
+                    "type": "string",
+                    "description": "Number of meals to recommend (default 10).",
+                },
                 "profile": PROFILE_ARG_SCHEMA,
             },
         },

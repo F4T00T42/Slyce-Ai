@@ -25,8 +25,14 @@ SCHEMA = {
         "parameters": {
             "type": "object",
             "properties": {
-                "days": {"type": ["integer", "string"], "default": 3, "minimum": 1, "maximum": 14},
-                "meals_per_day": {"type": ["integer", "string"], "default": 3, "minimum": 1, "maximum": 6},
+                "days": {
+                    "type": "string",
+                    "description": "Number of days to plan, 1-14 (default 3).",
+                },
+                "meals_per_day": {
+                    "type": "string",
+                    "description": "Meals per day, 1-6 (default 3).",
+                },
                 "profile": PROFILE_ARG_SCHEMA,
             },
         },
