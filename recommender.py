@@ -12,7 +12,6 @@ from nutrition import compute_targets, NutritionTargets
 from filters import filter_meals
 from scorer import rank_meals
 
-
 @dataclass
 class RecommendationResult:
     # Output bundle: targets, counts before/after filtering, ranked meals, and
@@ -34,7 +33,6 @@ class RecommendationResult:
             "diet_enforced": self.diet_enforced,
             "note": self.note,
         }
-
 
 class MealRecommender:
     # Ties the catalog repository to the nutrition/filter/scorer pipeline.

@@ -1,7 +1,6 @@
 """Shared helper for tools that need a resolved UserProfile."""
 from ai.profile_context import resolve_profile
 
-
 def get_profile(args: dict, ctx):
     # Inputs: args (tool args; may carry an explicit `profile` override), ctx
     # (ToolContext). The user_id ALWAYS comes from ctx (injected by the backend);
@@ -13,10 +12,8 @@ def get_profile(args: dict, ctx):
     explicit = args.get("profile") or ctx.explicit_profile
     return resolve_profile(explicit, ctx.user_id, ctx.customer_repo)
 
-
 # Human-friendly labels for the required fields when asking the user.
 _FIELD_LABELS = {"weight": "weight (kg)", "height": "height (cm)", "age": "age"}
-
 
 def need_profile_response(missing: list) -> dict:
     # Input: missing (list of required field names not on file).
@@ -39,7 +36,6 @@ def need_profile_response(missing: list) -> dict:
             "provides that automatically."
         ),
     }
-
 
 # Reusable JSON schema for an explicit profile argument on profile-aware tools.
 PROFILE_ARG_SCHEMA = {

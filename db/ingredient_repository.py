@@ -29,7 +29,6 @@ ALLERGEN_KEYWORDS = {
     "Mustard": ["mustard"],
 }
 
-
 class IngredientRepository:
     # Reads ingredient composition and detects allergens for meals.
     def __init__(self, engine):

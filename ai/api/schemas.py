@@ -3,7 +3,6 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-
 class ProfileInput(BaseModel):
     # Optional per-request profile contract; any subset is accepted. Fields:
     # weight, height, age, gender, activity_level, goal, diet, allergies,
@@ -18,14 +17,12 @@ class ProfileInput(BaseModel):
     allergies: Optional[list[str]] = None
     diet_preferences: Optional[list[str]] = None
 
-
 class ChatRequest(BaseModel):
     # Fields: message (required), session_id?, user_id?, profile? (ProfileInput).
     message: str = Field(..., min_length=1)
     session_id: Optional[str] = None
     user_id: Optional[str] = None
     profile: Optional[ProfileInput] = None
-
 
 class RecommendRequest(BaseModel):
     # Body for POST /recommend. Fields: user_id? (preferred — loads the stored
@@ -35,7 +32,6 @@ class RecommendRequest(BaseModel):
     profile: Optional[ProfileInput] = None
     top_n: int = 10
 
-
 class ChatResponse(BaseModel):
     # Fields: reply, used_tools, citations, session_id.
     reply: str
@@ -43,14 +39,12 @@ class ChatResponse(BaseModel):
     citations: list[str] = []
     session_id: Optional[str] = None
 
-
 class TranscriptMessage(BaseModel):
     # One stored transcript turn: role, content, created_at?, metadata?.
     role: str
     content: str
     created_at: Optional[str] = None
     metadata: Optional[dict] = None
-
 
 class HistoryResponse(BaseModel):
     # Fields: session_id, messages (list of TranscriptMessage), count.

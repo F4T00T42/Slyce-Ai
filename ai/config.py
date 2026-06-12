@@ -9,9 +9,8 @@ try:
     from dotenv import load_dotenv
 
     load_dotenv()
-except Exception:  # python-dotenv optional at runtime
+except ImportError:  # python-dotenv optional at runtime
     pass
-
 
 @dataclass
 class Settings:
@@ -61,6 +60,5 @@ class Settings:
     context_turns: int = field(
         default_factory=lambda: int(os.getenv("CONTEXT_TURNS", "20"))
     )
-
 
 settings = Settings()

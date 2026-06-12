@@ -5,7 +5,6 @@ from sqlalchemy import select
 
 from db.schema import allergens_table, food_preferences_table
 
-
 class ReferenceRepository:
     # Cached id->name maps for Food.Allergens and Food.FoodPreferences.
     def __init__(self, engine):
@@ -19,7 +18,7 @@ class ReferenceRepository:
             rows = conn.execute(
                 select(allergens_table.c.Id, allergens_table.c.Name)
             ).all()
-        return {str(r.Id): r.Name for r in rows}
+            return {str(r.Id): r.Name for r in rows}
 
     def allergen_names(self) -> list:
         # Returns the list of known allergen names.
@@ -32,7 +31,7 @@ class ReferenceRepository:
             rows = conn.execute(
                 select(food_preferences_table.c.Id, food_preferences_table.c.Name)
             ).all()
-        return {str(r.Id): r.Name for r in rows}
+            return {str(r.Id): r.Name for r in rows}
 
     def names_for_ids(self, mapping: dict, ids) -> list:
         # Inputs: mapping (id->name dict), ids (iterable of ids).

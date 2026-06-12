@@ -33,14 +33,12 @@ _ACTIVITY_ALIASES = {
     "extremelyactive": "super_active",
 }
 
-
 def normalize_activity_level(value):
     # Input: value (any activity label). Returns a canonical ActivityLevel.
     if not value:
         return "moderately_active"
     key = "".join(c for c in str(value).lower() if c.isalnum())
     return _ACTIVITY_ALIASES.get(key, "moderately_active")
-
 
 # Diet/plan label -> canonical Diet. Ingredient-based plans (vegetarian/vegan/
 # pescatarian/gluten free/dairy free) map to "balanced" (not macro-enforceable).
@@ -58,14 +56,12 @@ _DIET_ALIASES = {
     "dairyfree": "balanced",
 }
 
-
 def normalize_diet(value):
     # Input: value (any diet/plan label). Returns a canonical Diet.
     if not value:
         return "balanced"
     key = "".join(c for c in str(value).lower() if c.isalnum())
     return _DIET_ALIASES.get(key, "balanced")
-
 
 class UserProfile(BaseModel):
     # Fields: weight(kg), height(cm), age, gender, activity_level, goal, diet,
@@ -92,7 +88,6 @@ class UserProfile(BaseModel):
     def _normalize_diet(cls, v):
         # v: raw diet input -> canonical Diet.
         return normalize_diet(v)
-
 
 @dataclass
 class Meal:
@@ -125,7 +120,6 @@ class Meal:
     restaurant_id: str = ""
     available: bool = True
     ingredients: list[str] = field(default_factory=list)
-
 
 @dataclass
 class ScoredMeal:

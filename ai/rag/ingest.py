@@ -17,7 +17,6 @@ import re
 from ai.rag.embedder import Embedder
 from ai.rag.vector_store import VectorStore
 
-
 def _parse_front_matter(text: str, filename: str) -> tuple[dict, str]:
     # Inputs: text (file contents), filename (used for the default title).
     # Returns (metadata dict with title/source, body text without front matter).
@@ -30,7 +29,6 @@ def _parse_front_matter(text: str, filename: str) -> tuple[dict, str]:
                 meta[k.strip()] = v.strip()
         text = text[m.end():]
     return meta, text
-
 
 def chunk_text(text: str, size: int = 800, overlap: int = 150) -> list[str]:
     # Inputs: text, size (words per chunk), overlap (shared words between chunks).
@@ -45,13 +43,13 @@ def chunk_text(text: str, size: int = 800, overlap: int = 150) -> list[str]:
             break
     return chunks
 
-
-def ingest(docs_dir: str) -> int:
-    # Input: docs_dir (folder of .md/.txt docs). Embeds + upserts all chunks.
-    # Returns the number of chunks ingested.
+def ingest(docs_dir: str, recreate: bool = False) -> int:
+    # Inputs: docs_dir (folder of .md/.txt docs), recreate (drop + rebuild the
+    # collection before ingesting). Embeds + upserts all chunks. Returns the
+    # number of chunks ingested.
     embedder = Embedder()
     store = VectorStore()
-    store.ensure_collection(embedder.dim)
+    store.ensure_collection(embedder.dim, recreate=recreate)
 
     texts, payloads = [], []
     for root, _, files in os.walk(docs_dir):
@@ -76,9 +74,9 @@ def ingest(docs_dir: str) -> int:
     print(f"Ingested {count} chunks from {docs_dir} into '{store.collection}'.")
     return count
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--docs", default="knowledge_base/docs")
+    parser.add_argument("--recreate", action="store_true", help="drop + rebuild the collection")
     args = parser.parse_args()
-    ingest(args.docs)
+    ingest(args.docs, recreate=args.recreate)

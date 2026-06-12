@@ -6,7 +6,6 @@ The app DB has no fitness goal; it defaults to "maintenance" unless supplied.
 """
 from models import UserProfile, normalize_diet
 
-
 def _coarse_diet(diet_preferences: list[str], explicit: str | None) -> str:
     # Inputs: diet_preferences (selected/stored plan names), explicit (caller diet).
     # Returns explicit if given, else the first macro-enforceable plan among the
@@ -20,7 +19,6 @@ def _coarse_diet(diet_preferences: list[str], explicit: str | None) -> str:
         if mapped != "balanced":
             return mapped
     return "balanced"
-
 
 def resolve_profile(
     explicit: dict | None,

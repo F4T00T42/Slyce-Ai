@@ -27,9 +27,12 @@ if surl.startswith("postgresql"):
 PY
 
 if [ "${RUN_INGEST:-true}" = "true" ]; then
-  echo "[entrypoint] Bootstrapping knowledge base (idempotent)..."
-  python -m ai.rag.bootstrap_kb || echo "[entrypoint] KB bootstrap skipped/failed; continuing."
+    echo "[entrypoint] Bootstrapping knowledge base (idempotent)..."
+    python -m ai.rag.bootstrap_kb || echo "[entrypoint] KB bootstrap skipped/failed; continuing."
 fi
+
+# Prevent the API process from re-running ingest on import/startup (M3).
+export RUN_INGEST=false
 
 echo "[entrypoint] Starting API on :8000"
 exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers "${WEB_CONCURRENCY:-1}"

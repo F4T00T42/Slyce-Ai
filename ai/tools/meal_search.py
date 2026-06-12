@@ -34,7 +34,6 @@ SCHEMA = {
     },
 }
 
-
 def _meal_brief(m) -> dict:
     # Input: m (Meal). Returns a compact summary dict (macros, price, allergens).
     return {
@@ -48,7 +47,6 @@ def _meal_brief(m) -> dict:
         "currency": m.currency,
         "allergens": m.tags,
     }
-
 
 def _best_name_match(meals: list, query: str):
     # Inputs: meals (search results), query (user text). Returns one confident
@@ -66,7 +64,6 @@ def _best_name_match(meals: list, query: str):
         return meals[0]
     return None
 
-
 def _analyze(meal, ctx) -> dict:
     # Inputs: meal (Meal), ctx (ToolContext). Returns full nutrition + per-
     # ingredient composition for one meal size.
@@ -83,7 +80,6 @@ def _analyze(meal, ctx) -> dict:
         },
         "composition": composition,
     }
-
 
 def run(args: dict, ctx) -> dict:
     # Inputs: args (query?, meal_id?, max_calories?, min_protein?, limit?=10),

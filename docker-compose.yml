@@ -4,9 +4,9 @@
 #   2. docker compose up --build
 #
 # Services:
-#   - app          : the FastAPI Nutrition Assistant (POST /chat, /recommend, /health)
-#   - qdrant       : vector store for the RAG knowledge base (separate datastore)
-#   - sessions-db  : Postgres for durable conversation history (separate datastore)
+#   - app         : the FastAPI Nutrition Assistant (POST /chat, /recommend, /health)
+#   - qdrant      : vector store for the RAG knowledge base (separate datastore)
+#   - sessions-db : Postgres for durable conversation history (separate datastore)
 #
 # The main application database (your Supabase Postgres) is external and used
 # READ-ONLY via the DB_* values in .env. It is never written to.
@@ -57,7 +57,7 @@ services:
         condition: service_started
     volumes:
       # Persist the downloaded embedding model so it is fetched only once.
-      - hf_cache:/root/.cache/huggingface
+      - hf_cache:/home/appuser/.cache/huggingface
 
 volumes:
   qdrant_data:

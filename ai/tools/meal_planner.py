@@ -33,15 +33,16 @@ SCHEMA = {
     },
 }
 
-
 def run(args: dict, ctx) -> dict:
     # Inputs: args (days?=3, meals_per_day?=3, profile?), ctx (ToolContext; supplies user_id).
+    from ai.tools import coerce_int
+
     profile, missing = get_profile(args, ctx)
     if profile is None:
         return need_profile_response(missing)
 
-    days = max(1, min(args.get("days", 3), 14))
-    meals_per_day = max(1, min(args.get("meals_per_day", 3), 6))
+    days = max(1, min(coerce_int(args.get("days"), 3), 14))
+    meals_per_day = max(1, min(coerce_int(args.get("meals_per_day"), 3), 6))
 
     targets = compute_targets(profile, meals_per_day)
     all_meals = ctx.meal_repo.get_all(only_available=True, with_allergens=True)
@@ -50,7 +51,7 @@ def run(args: dict, ctx) -> dict:
         return {
             "status": "no_meals",
             "message": "No catalog meals match the diet/allergen constraints.",
-            "targets": _targets_dict(targets),
+            "targets": targets.summary(),
         }
 
     ranked = rank_meals(eligible, profile, targets, top_n=len(eligible))
@@ -94,18 +95,8 @@ def run(args: dict, ctx) -> dict:
 
     return {
         "status": "ok",
-        "targets": _targets_dict(targets),
+        "targets": targets.summary(),
         "days": days,
         "meals_per_day": meals_per_day,
         "plan": plan,
-    }
-
-
-def _targets_dict(t) -> dict:
-    # Input: t (NutritionTargets). Returns the daily/per-meal targets as a dict.
-    return {
-        "daily_calories": t.daily_calories,
-        "meal_calories": t.meal_calories,
-        "daily_protein_g": t.daily_protein_g,
-        "meal_protein_g": t.meal_protein_g,
     }

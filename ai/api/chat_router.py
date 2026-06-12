@@ -5,10 +5,12 @@ once. The app DB engine is read-only; the retriever uses Qdrant and the session
 store uses its own separate datastore.
 
 Endpoints:
-  POST   /chat                      -> send a message, get a reply
-  GET    /chat/history/{session_id} -> full transcript for display
-  DELETE /chat/history/{session_id} -> clear a conversation
+    POST   /chat                      -> send a message, get a reply
+    GET    /chat/history/{session_id} -> full transcript for display
+    DELETE /chat/history/{session_id} -> clear a conversation
 """
+import logging
+
 from fastapi import APIRouter, Depends, Query, HTTPException
 
 from ai.config import settings
@@ -25,10 +27,10 @@ from ai.tools import ToolContext
 from ai.profile_context import resolve_profile
 
 router = APIRouter(tags=["chat"])
+logger = logging.getLogger("slyce.chat")
 
 # Process-wide shared resources, populated by init_chat().
 _state: dict = {}
-
 
 def init_chat(engine, recommender) -> None:
     # Inputs: engine (shared read-only SQLAlchemy engine), recommender
@@ -57,17 +59,22 @@ def init_chat(engine, recommender) -> None:
 
         retriever = Retriever()
     except Exception:
+        logger.warning("Retriever unavailable; RAG disabled", exc_info=True)
         retriever = None
     _state["retriever"] = retriever
     _state["orchestrator"] = Orchestrator(_state["llm"])
 
-
 def _get_state() -> dict:
     # Dependency that returns shared state or errors if init_chat() wasn't run.
     if not _state:
-        raise RuntimeError("Chat not initialized; call init_chat() at startup.")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_initialized",
+                "message": "Chat is not initialized yet. Please retry shortly.",
+            },
+        )
     return _state
-
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, state: dict = Depends(_get_state)) -> ChatResponse:
@@ -79,6 +86,7 @@ def chat(req: ChatRequest, state: dict = Depends(_get_state)) -> ChatResponse:
     except Exception:
         # Don't fail the whole chat on a transient profile-load error: continue
         # without a stored profile so the assistant can still answer or ask for stats.
+        logger.warning("Profile load failed; continuing without stored profile", exc_info=True)
         profile = None
 
     ctx = ToolContext(
@@ -100,6 +108,7 @@ def chat(req: ChatRequest, state: dict = Depends(_get_state)) -> ChatResponse:
     try:
         result = state["orchestrator"].handle(req.message, ctx, history=history)
     except Exception:
+        logger.exception("Orchestrator failed for /chat")
         raise HTTPException(
             status_code=503,
             detail={
@@ -125,7 +134,6 @@ def chat(req: ChatRequest, state: dict = Depends(_get_state)) -> ChatResponse:
         session_id=req.session_id,
     )
 
-
 @router.get("/chat/history/{session_id}", response_model=HistoryResponse)
 def get_history(
     session_id: str,
@@ -141,7 +149,6 @@ def get_history(
         messages=[TranscriptMessage(**r) for r in rows],
         count=len(rows),
     )
-
 
 @router.delete("/chat/history/{session_id}")
 def delete_history(session_id: str, state: dict = Depends(_get_state)) -> dict:

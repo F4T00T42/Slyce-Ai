@@ -28,14 +28,15 @@ SCHEMA = {
     },
 }
 
-
 def run(args: dict, ctx) -> dict:
     # Inputs: args (top_n?=10, profile?), ctx (ToolContext; supplies user_id).
     # Resolves the profile then returns ranked catalog recommendations.
+    from ai.tools import coerce_int
+
     profile, missing = get_profile(args, ctx)
     if profile is None:
         return need_profile_response(missing)
-    top_n = args.get("top_n", 10)
+    top_n = coerce_int(args.get("top_n"), 10)
     result = ctx.recommender.recommend(profile, top_n=top_n)
     payload = result.to_dict()
     # Drop verbose scoring breakdowns before returning to the LLM.

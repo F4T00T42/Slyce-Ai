@@ -3,7 +3,6 @@ from ai.config import settings
 from ai.rag.embedder import Embedder
 from ai.rag.vector_store import VectorStore
 
-
 class Retriever:
     # Embeds a query and returns the top knowledge-base chunks above min score.
     def __init__(self, embedder: Embedder | None = None, store: VectorStore | None = None):

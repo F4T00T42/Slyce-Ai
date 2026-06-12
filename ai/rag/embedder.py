@@ -7,7 +7,6 @@ from ai.config import settings
 
 _QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
-
 class Embedder:
     # Lazy BGE sentence-transformer for documents and queries.
     def __init__(self, model_name: str | None = None):

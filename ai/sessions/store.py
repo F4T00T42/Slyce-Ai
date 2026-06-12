@@ -8,26 +8,27 @@ Two separate concerns:
 
 Backends (same interface):
 - InMemorySessionStore — per-process dict; lost on restart. Dev/testing only.
-- SqlSessionStore      — durable; SQLite by default or any SQLAlchemy URL
-                         (e.g. Postgres). A SEPARATE datastore; the app DB is
-                         never written to.
+- SqlSessionStore       — durable; SQLite by default or any SQLAlchemy URL
+                          (e.g. Postgres). A SEPARATE datastore; the app DB is
+                          never written to.
 
 Use build_session_store() to construct the configured backend.
 """
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from datetime import datetime, timezone
 from typing import Optional
 
 from ai.config import settings
 
+logger = logging.getLogger("slyce.sessions")
 
 def _now() -> datetime:
     # Current UTC timestamp.
     return datetime.now(timezone.utc)
-
 
 class InMemorySessionStore:
     # Ephemeral per-process store; full transcript kept in memory (unbounded).
@@ -84,7 +85,6 @@ class InMemorySessionStore:
         # Input: session_id. Drops the entire conversation.
         with self._lock:
             self._data.pop(session_id, None)
-
 
 class SqlSessionStore:
     # Durable store on SQLAlchemy (SQLite default or Postgres). Owns its own
@@ -197,7 +197,6 @@ class SqlSessionStore:
         with self._engine.begin() as conn:
             conn.execute(delete(t).where(t.c.session_id == session_id))
 
-
 def build_session_store():
     # Construct the configured store: SESSION_BACKEND=memory -> InMemory;
     # sqlite/postgres/sql -> SqlSessionStore(SESSION_DB_URL). Falls back to
@@ -208,4 +207,8 @@ def build_session_store():
     try:
         return SqlSessionStore(settings.session_db_url)
     except Exception:
+        logger.warning(
+            "Durable session store init failed; falling back to in-memory",
+            exc_info=True,
+        )
         return InMemorySessionStore()

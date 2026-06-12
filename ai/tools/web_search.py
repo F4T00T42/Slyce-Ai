@@ -36,7 +36,6 @@ SCHEMA = {
     },
 }
 
-
 def _client(ctx):
     # Input: ctx (ToolContext). Returns the injected web client or a lazily-built
     # Tavily client; raises if TAVILY_API_KEY is unset.
@@ -49,7 +48,6 @@ def _client(ctx):
     client = TavilyClient(api_key=settings.tavily_api_key)
     ctx.web_client = client
     return client
-
 
 def run(args: dict, ctx) -> dict:
     # Inputs: args (query, user_requested, max_results?=5), ctx (ToolContext).

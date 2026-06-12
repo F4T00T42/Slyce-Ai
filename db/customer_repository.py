@@ -13,7 +13,6 @@ from db.connection import run_with_retry
 from db.schema import customers_table as C
 from db.reference_repository import ReferenceRepository
 
-
 def _age_from_bday(bday) -> int | None:
     # Input: bday (date or None). Returns age in years, or None if invalid/placeholder.
     if not isinstance(bday, date):
@@ -22,7 +21,6 @@ def _age_from_bday(bday) -> int | None:
         return None
     today = date.today()
     return today.year - bday.year - ((today.month, today.day) < (bday.month, bday.day))
-
 
 class CustomerRepository:
     # Loads stored profiles and resolves allergen/preference ids to names.

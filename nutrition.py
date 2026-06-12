@@ -46,7 +46,6 @@ DIET_MACRO_RANGES = {
 # Calories per gram per macronutrient.
 CALS_PER_G = {"carb": 4.0, "protein": 4.0, "fat": 9.0}
 
-
 def macro_calorie_fractions(meal) -> dict:
     # Input: meal (Meal). Returns {carb, protein, fat} as fractions of total
     # calories (0.0 each when calories are missing). Single source of truth for
@@ -59,7 +58,6 @@ def macro_calorie_fractions(meal) -> dict:
         "fat": (meal.total_fat * CALS_PER_G["fat"]) / meal.calories,
     }
 
-
 @dataclass
 class NutritionTargets:
     # Computed daily + per-meal calorie/protein targets, plus BMR/TDEE.
@@ -71,12 +69,15 @@ class NutritionTargets:
     tdee: float
     meals_per_day: int = 3
 
+    def summary(self) -> dict:
+        # Returns all computed targets as a plain dict for tool/API payloads.
+        from dataclasses import asdict
+        return asdict(self)
 
 def compute_bmr(profile: UserProfile) -> float:
     # Input: profile (UserProfile). Returns BMR via Mifflin-St Jeor.
     base = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age
     return base + 5 if profile.gender == "male" else base - 161
-
 
 def compute_targets(profile: UserProfile, meals_per_day: int = 3) -> NutritionTargets:
     # Inputs: profile (UserProfile), meals_per_day (split target across meals).

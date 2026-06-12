@@ -5,7 +5,6 @@ from typing import Any
 
 from ai.config import settings
 
-
 class LLMProvider:
     # Lazily-built Groq client exposing a single chat() method.
     def __init__(self, model: str | None = None, api_key: str | None = None):

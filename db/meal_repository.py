@@ -9,11 +9,9 @@ from models import Meal
 from db.schema import meal_sizes_table as MS, menu_meals_table as MM
 from db.ingredient_repository import IngredientRepository
 
-
 def _f(v) -> float:
     # Input: v (numeric or None). Returns float, defaulting None to 0.0.
     return float(v) if v is not None else 0.0
-
 
 class MealRepository:
     # Builds Meal objects from the catalog and attaches allergen tags.

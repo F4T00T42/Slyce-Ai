@@ -20,7 +20,6 @@ _FALLBACK_REPLY = (
     "try again?"
 )
 
-
 class Orchestrator:
     # Drives the tool-calling conversation with the LLM.
     def __init__(self, llm):

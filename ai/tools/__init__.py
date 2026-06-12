@@ -3,6 +3,7 @@
   - run(args, ctx) -> dict
 ctx is a ToolContext carrying repos, retriever, web client, and resolved profile.
 """
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -16,6 +17,8 @@ from . import (
     web_search,
 )
 
+logger = logging.getLogger("slyce.tools")
+
 _MODULES = [
     recommendation_engine,
     meal_planner,
@@ -25,7 +28,6 @@ _MODULES = [
     allergy_assistant,
     web_search,
 ]
-
 
 @dataclass
 class ToolContext:
@@ -46,11 +48,19 @@ class ToolContext:
     user_id: str | None = None
     citations: list = field(default_factory=list)
 
-
 TOOL_SCHEMAS: list[dict] = [m.SCHEMA for m in _MODULES]
 TOOL_FUNCTIONS: dict[str, Callable] = {m.SCHEMA["function"]["name"]: m.run for m in _MODULES}
 _SCHEMAS_BY_NAME: dict[str, dict] = {m.SCHEMA["function"]["name"]: m.SCHEMA for m in _MODULES}
 
+def coerce_int(value: Any, default: int) -> int:
+    # Best-effort int coercion for tool args (LLMs sometimes pass numbers as
+    # strings or floats). Falls back to default on None/invalid input.
+    if value is None:
+        return default
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
 
 def _coerce_scalar(value: Any, prop_schema: dict) -> Any:
     # Groq/Llama tool calls frequently emit numbers (and booleans) as JSON
@@ -83,7 +93,6 @@ def _coerce_scalar(value: Any, prop_schema: dict) -> Any:
         return _coerce_args(value, prop_schema.get("properties") or {})
     return value
 
-
 def _coerce_args(args: dict, properties: dict) -> dict:
     # Coerce each known property of `args` to its declared schema type (recursing
     # into nested object schemas such as `profile`). Unknown keys pass through.
@@ -93,7 +102,6 @@ def _coerce_args(args: dict, properties: dict) -> dict:
         key: (_coerce_scalar(val, properties[key]) if key in properties else val)
         for key, val in args.items()
     }
-
 
 def execute(name: str, args: dict, ctx: ToolContext) -> dict:
     # Inputs: name (tool name), args (tool arguments), ctx (ToolContext).
@@ -111,4 +119,5 @@ def execute(name: str, args: dict, ctx: ToolContext) -> dict:
     try:
         return fn(_coerce_args(args or {}, properties), ctx)
     except Exception as exc:  # surface a clean error to the LLM
+        logger.exception("Tool '%s' raised an exception", name)
         return {"error": f"{type(exc).__name__}: {exc}"}

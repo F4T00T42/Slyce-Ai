@@ -17,14 +17,12 @@ from sqlalchemy.pool import NullPool
 # read-only queries.
 _TRANSIENT_ERRORS = (OperationalError, InterfaceError)
 
-
 def _require(name: str) -> str:
     # Input: name (env var name). Returns its value or raises if unset/empty.
     val = os.getenv(name)
     if not val:
         raise RuntimeError(f"Missing required env var: {name}")
     return val
-
 
 def build_engine() -> Engine:
     # Reads DB_HOST/DB_PORT(6543)/DB_NAME/DB_USER/DB_PASSWORD from env.
@@ -51,7 +49,6 @@ def build_engine() -> Engine:
         },
         future=True,
     )
-
 
 def run_with_retry(fn, attempts: int = 3, base_delay: float = 0.25):
     # Inputs: fn (zero-arg callable performing a read), attempts (max tries),

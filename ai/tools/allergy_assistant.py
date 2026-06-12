@@ -6,6 +6,7 @@ and compares them with the user's declared allergies. Detection is heuristic
 """
 from ai.tools._profile import get_profile
 from db.ingredient_repository import IngredientRepository
+from filters import allergy_conflicts
 
 SCHEMA = {
     "type": "function",
@@ -29,7 +30,6 @@ SCHEMA = {
         },
     },
 }
-
 
 def run(args: dict, ctx) -> dict:
     # Inputs: args (meal_id?, ingredients?), ctx (ToolContext; supplies user_id).
@@ -58,9 +58,8 @@ def run(args: dict, ctx) -> dict:
         stored = ctx.customer_repo.get_profile(ctx.user_id) or {}
         user_allergies = stored.get("allergies", [])
 
-    conflicts = sorted(
-        {a for a in user_allergies for d in detected if a.lower() == d.lower()}
-    )
+    # Synonym-aware comparison (so "dairy" matches "Milk", "nuts" -> "Tree Nuts").
+    conflicts = allergy_conflicts(user_allergies, detected)
     return {
         "status": "ok",
         "meal": meal_name,

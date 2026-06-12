@@ -24,7 +24,6 @@ from ai.profile_context import resolve_profile
 # Singletons built once at startup (read-only DB engine + recommender + repo).
 _resources: dict = {}
 
-
 def _maybe_bootstrap_kb() -> None:
     # Ingest the knowledge base in the background when RUN_INGEST=true.
     # Runs regardless of how the app is launched (works without the Docker
@@ -44,7 +43,6 @@ def _maybe_bootstrap_kb() -> None:
 
     threading.Thread(target=_worker, name="kb-bootstrap", daemon=True).start()
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Build DB engine + recommender + customer repo, wire the chat layer,
@@ -59,7 +57,6 @@ async def lifespan(app: FastAPI):
     yield
     engine.dispose()
 
-
 app = FastAPI(title="Slyce AI", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
@@ -72,12 +69,10 @@ app.add_middleware(
 
 app.include_router(chat_router)
 
-
 @app.get("/health")
 def health():
     # Liveness probe.
     return {"status": "ok"}
-
 
 @app.post("/recommend")
 def recommend(req: RecommendRequest):

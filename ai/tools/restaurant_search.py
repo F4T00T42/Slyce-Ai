@@ -19,7 +19,6 @@ SCHEMA = {
     },
 }
 
-
 def run(args: dict, ctx) -> dict:
     # Inputs: args (query?, city?, limit?=10), ctx (ToolContext).
     results = ctx.restaurant_repo.search(

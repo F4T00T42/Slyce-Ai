@@ -22,7 +22,6 @@ SCHEMA = {
     },
 }
 
-
 def run(args: dict, ctx) -> dict:
     # Inputs: args (query, top_k?=5), ctx (ToolContext; uses ctx.retriever).
     # Returns scored KB chunks and records their sources in ctx.citations.

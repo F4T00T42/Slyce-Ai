@@ -2,7 +2,7 @@
 from sqlalchemy import select
 
 from db.schema import restaurants_table as R, restaurant_branches_table as B
-
+from db._util import to_float
 
 class RestaurantRepository:
     # Searches restaurants and groups their branches.
@@ -61,8 +61,8 @@ class RestaurantRepository:
                             "area": r.Area,
                             "city": r.City,
                             "phone": r.PhoneNumber,
-                            "lat": float(r.Latitude) if r.Latitude is not None else None,
-                            "lng": float(r.Longitude) if r.Longitude is not None else None,
+                            "lat": to_float(r.Latitude, None),
+                            "lng": to_float(r.Longitude, None),
                         }
                     )
         return list(grouped.values())
