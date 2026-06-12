@@ -39,7 +39,7 @@ class Settings:
     )
     rag_top_k: int = field(default_factory=lambda: int(os.getenv("RAG_TOP_K", "5")))
     rag_min_score: float = field(
-        default_factory=lambda: float(os.getenv("RAG_MIN_SCORE", "0.35"))
+        default_factory=lambda: float(os.getenv("RAG_MIN_SCORE", "0.5"))
     )
 
     # --- Web search (Tavily) ---
