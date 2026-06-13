@@ -32,7 +32,7 @@ SCHEMA = {
                 },
                 "meal_id": {
                     "type": "string",
-                    "description": "MealSizes.Id to analyze in detail (ingredients + macros).",
+                    "description": "MenuMeals.Id (the meal_id returned by search/recommendations) to analyze in detail.",
                 },
                 "limit": {
                     "type": "string",
@@ -47,6 +47,8 @@ def _meal_brief(m) -> dict:
     # Input: m (Meal). Returns a compact summary dict (macros, price, allergens).
     return {
         "meal_id": m.meal_id,
+        "size_id": m.size_id,
+        "size_name": m.size_name,
         "name": m.name,
         "calories": round(m.calories, 1),
         "protein_g": round(m.protein, 1),
@@ -76,7 +78,7 @@ def _best_name_match(meals: list, query: str):
 def _analyze(meal, ctx) -> dict:
     # Inputs: meal (Meal), ctx (ToolContext). Returns full nutrition + per-
     # ingredient composition for one meal size.
-    composition = ctx.ingredient_repo.composition_for_size(meal.meal_id)
+    composition = ctx.ingredient_repo.composition_for_size(meal.size_id)
     return {
         "status": "ok",
         "meal": {

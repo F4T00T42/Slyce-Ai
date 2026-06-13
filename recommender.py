@@ -48,8 +48,8 @@ class MealRecommender:
         # Always returns meals when the catalog is non-empty, via a fallback ladder:
         #   1) allergen-safe AND diet-compatible (if that yields >= top_n)
         #   2) allergen-safe only (diet relaxed; still boosts ranking)
-        #   3) full available catalog (only if allergen filtering removed everything)
-        all_meals = self._repo.get_all(only_available=True, with_allergens=True)
+        #   3) full reviewed catalog (only if allergen filtering removed everything)
+        all_meals = self._repo.get_all(only_reviewed=True, with_allergens=True)
         targets = compute_targets(profile, self.meals_per_day)
 
         safe = filter_meals(all_meals, profile, apply_diet=False)

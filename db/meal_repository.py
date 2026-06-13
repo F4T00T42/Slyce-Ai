@@ -47,7 +47,7 @@ class MealRepository:
             MS.c.Tags,
             MM.c.Name.label("meal_name"),
             MM.c.Description,
-            MM.c.Available,
+            MM.c.Reviewed,
             MM.c.RestaurantId,
         ).select_from(MS.join(MM, MS.c.MealId == MM.c.Id))
 
@@ -60,7 +60,7 @@ class MealRepository:
         size = row.size_name or ""
         display = f"{meal_name} ({size})" if size else meal_name
         return Meal(
-            meal_id=str(row.Id),
+            meal_id=str(row.MealId),
             name=display,
             calories=_f(row.Calories),
             sodium_mg=_f(row.SodiumMg),
@@ -79,43 +79,46 @@ class MealRepository:
             vitamin_c_mg=_f(row.VitaminCMg),
             vitamin_d=_f(row.VitaminD),
             tags=tags,
-            menu_meal_id=str(row.MealId),
+            size_id=str(row.Id),
             size_name=size,
             description=row.Description or "",
             price=_f(row.price_amount),
             currency=row.price_currency or "",
             restaurant_id=str(row.RestaurantId) if row.RestaurantId else "",
-            available=bool(row.Available),
+            reviewed=bool(row.Reviewed),
         )
 
     def _attach_allergens(self, meals: list) -> None:
         # Input: meals (list[Meal]). Sets .ingredients and merges allergens into .tags.
-        menu_ids = list({m.menu_meal_id for m in meals if m.menu_meal_id})
+        menu_ids = list({m.meal_id for m in meals if m.meal_id})
         names_by_meal = self._ingredients.ingredient_names_for_meals(menu_ids)
         for m in meals:
-            names = names_by_meal.get(m.menu_meal_id, [])
+            names = names_by_meal.get(m.meal_id, [])
             m.ingredients = names
             detected = self._ingredients.detect_allergens(names)
             merged = {t for t in m.tags}
             merged.update(detected)
             m.tags = sorted(merged)
 
-    def get_all(self, only_available: bool = True, with_allergens: bool = True) -> list:
-        # Inputs: only_available (limit to available meals), with_allergens (attach tags).
+    def get_all(self, only_reviewed: bool = True, with_allergens: bool = True) -> list:
+        # Inputs: only_reviewed (limit to reviewed/orderable meals), with_allergens (attach tags).
         stmt = self._base_select()
-        if only_available:
-            stmt = stmt.where(MM.c.Available.is_(True))
+        if only_reviewed:
+            stmt = stmt.where(MM.c.Reviewed.is_(True))
         with self._engine.connect() as conn:
             meals = [self._map(r) for r in conn.execute(stmt)]
         if with_allergens:
             self._attach_allergens(meals)
         return meals
 
-    def get_by_ids(self, size_ids: list, with_allergens: bool = True) -> list:
-        # Inputs: size_ids (list of MealSizes.Id), with_allergens (attach tags).
-        if not size_ids:
+    def get_by_ids(self, menu_meal_ids: list, with_allergens: bool = True) -> list:
+        # Inputs: menu_meal_ids (list of MenuMeals.Id), with_allergens (attach tags).
+        # Only reviewed meals are returned (unreviewed meals are not orderable).
+        if not menu_meal_ids:
             return []
-        stmt = self._base_select().where(MS.c.Id.in_(size_ids))
+        stmt = self._base_select().where(
+            MM.c.Id.in_(menu_meal_ids) & MM.c.Reviewed.is_(True)
+        )
         with self._engine.connect() as conn:
             meals = [self._map(r) for r in conn.execute(stmt)]
         if with_allergens:
@@ -125,8 +128,8 @@ class MealRepository:
     def search(self, query: str = None, max_calories: float = None,
                min_protein: float = None, limit: int = 20) -> list:
         # Inputs: query (name/description ilike), max_calories, min_protein,
-        # limit (max rows, default 20). Returns matching available meals w/ allergens.
-        stmt = self._base_select().where(MM.c.Available.is_(True))
+        # limit (max rows, default 20). Returns matching reviewed meals w/ allergens.
+        stmt = self._base_select().where(MM.c.Reviewed.is_(True))
         if query:
             like = f"%{query}%"
             stmt = stmt.where(MM.c.Name.ilike(like) | MM.c.Description.ilike(like))

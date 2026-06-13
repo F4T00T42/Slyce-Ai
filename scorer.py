@@ -81,6 +81,8 @@ def score_meal(meal: Meal, profile: UserProfile, targets: NutritionTargets) -> S
     )
     return ScoredMeal(
         meal_id=meal.meal_id,
+        size_id=meal.size_id,
+        size_name=meal.size_name,
         name=meal.name,
         score=round(total, 4),
         calorie_score=round(cal_score, 4),

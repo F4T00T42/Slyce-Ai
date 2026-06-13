@@ -20,7 +20,7 @@ SCHEMA = {
         "parameters": {
             "type": "object",
             "properties": {
-                "meal_id": {"type": "string", "description": "MealSizes.Id to check."},
+                "meal_id": {"type": "string", "description": "MenuMeals.Id (the meal_id returned by search/recommendations) to check."},
                 "ingredients": {
                     "type": "array",
                     "items": {"type": "string"},

@@ -92,7 +92,7 @@ class UserProfile(BaseModel):
 @dataclass
 class Meal:
     # One orderable meal size (menus.MealSizes) + parent meal info + allergens.
-    meal_id: str  # menus.MealSizes.Id (size-level id the app orders by)
+    meal_id: str  # menus.MenuMeals.Id (conceptual meal id returned to clients)
     name: str
     calories: float
     sodium_mg: float = 0.0
@@ -112,19 +112,21 @@ class Meal:
     vitamin_d: float = 0.0
     tags: list[str] = field(default_factory=list)
     # Extended fields mapped from the real schema:
-    menu_meal_id: str = ""  # menus.MenuMeals.Id (conceptual meal)
+    size_id: str = ""  # menus.MealSizes.Id (exact orderable size)
     size_name: str = ""  # e.g. "small" / "large"
     description: str = ""
     price: float = 0.0
     currency: str = ""
     restaurant_id: str = ""
-    available: bool = True
+    reviewed: bool = True  # menus.MenuMeals.Reviewed (only reviewed meals are orderable)
     ingredients: list[str] = field(default_factory=list)
 
 @dataclass
 class ScoredMeal:
-    # A scored meal: meal_id, name, total score, per-component scores, breakdown.
-    meal_id: str
+    # A scored meal: ids, name, total score, per-component scores, breakdown.
+    meal_id: str  # menus.MenuMeals.Id (conceptual meal id)
+    size_id: str  # menus.MealSizes.Id (exact orderable size)
+    size_name: str  # e.g. "small" / "large"
     name: str
     score: float
     calorie_score: float

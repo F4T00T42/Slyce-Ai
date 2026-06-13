@@ -51,7 +51,7 @@ def run(args: dict, ctx) -> dict:
     meals_per_day = max(1, min(coerce_int(args.get("meals_per_day"), 3), 6))
 
     targets = compute_targets(profile, meals_per_day)
-    all_meals = ctx.meal_repo.get_all(only_available=True, with_allergens=True)
+    all_meals = ctx.meal_repo.get_all(only_reviewed=True, with_allergens=True)
     eligible = filter_meals(all_meals, profile)
     if not eligible:
         return {
@@ -82,6 +82,8 @@ def run(args: dict, ctx) -> dict:
             day_meals.append(
                 {
                     "meal_id": meal.meal_id,
+                    "size_id": meal.size_id,
+                    "size_name": meal.size_name,
                     "name": meal.name,
                     "calories": round(meal.calories, 1),
                     "protein_g": round(meal.protein, 1),
