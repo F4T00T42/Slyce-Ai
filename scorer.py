@@ -95,6 +95,8 @@ def score_meal(meal: Meal, profile: UserProfile, targets: NutritionTargets) -> S
             "target_protein_g": targets.meal_protein_g,
             "weights": weights,
         },
+        # Passthrough only: returned so the backend can resolve the restaurant.
+        restaurant_id=meal.restaurant_id,
     )
 
 def rank_meals(meals, profile, targets, top_n: int = 10):

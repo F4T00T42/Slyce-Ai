@@ -133,3 +133,5 @@ class ScoredMeal:
     protein_score: float
     diet_score: float
     breakdown: dict
+    # Passthrough identifier for the backend; NOT used in scoring/ranking.
+    restaurant_id: str = ""
